@@ -1,10 +1,26 @@
-from app import create_app
+from flask import Flask
 
-# Create the Flask application instance
-app = create_app()
+app = Flask(__name__)
 
-# This is the WSGI callable that cPanel will use
-application = app
+@app.route('/')
+def hello():
+    return '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>LinkedIn Hero - Test</title>
+        <style>
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+            .success { color: green; font-size: 24px; }
+        </style>
+    </head>
+    <body>
+        <h1 class="success">✅ LinkedIn Hero is Working!</h1>
+        <p>Flask application is running successfully.</p>
+        <p>If you see this message, your Python environment is working correctly.</p>
+    </body>
+    </html>
+    '''
 
 if __name__ == '__main__':
     app.run() 
