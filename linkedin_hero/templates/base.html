@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}LinkedIn Hero{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script defer src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <link rel="icon" href="{{ url_for('static', filename='images/logo.png') }}">
+</head>
+<body>
+    <header style="background: var(--color-bg); border-bottom: 1.5px solid #e5e7eb; position: fixed; top: 0; left: 0; width: 100%; z-index: 100;">
+        <nav style="display: flex; align-items: center; justify-content: space-between; max-width: 1200px; margin: 0 auto; padding: 1rem 2rem;">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <a href="/" style="display: flex; align-items: center; text-decoration: none;">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="LinkedIn Hero Logo" style="height: 40px; margin-right: 0.5rem;">
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 700; font-size: 1.5rem; color: var(--color-accent);">LinkedIn Hero</span>
+                </a>
+            </div>
+            <ul style="display: flex; gap: 2rem; list-style: none; margin: 0; padding: 0; align-items: center;">
+                <li><a href="/pricing" style="color: var(--color-text-primary); text-decoration: none; font-weight: 600;">Pricing</a></li>
+                <li><a href="/dashboard" style="color: var(--color-text-primary); text-decoration: none; font-weight: 600;">Dashboard</a></li>
+            </ul>
+            <div>
+                {% if current_user.is_authenticated %}
+                    <a href="/profile" style="color: var(--color-accent); font-weight: 600; text-decoration: none; margin-right: 1rem;">{{ current_user.username }}</a>
+                    <a href="/logout" class="btn" style="background: var(--color-error);">Logout</a>
+                {% else %}
+                    <a href="/login" class="btn">Login</a>
+                {% endif %}
+            </div>
+        </nav>
+    </header>
+    <main style="padding-top: 90px; min-height: 70vh;">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div style="max-width: 600px; margin: 1rem auto;">
+              {% for category, message in messages %}
+                <div class="text-{{ category }}" style="padding: 0.75em 1em; border-radius: 6px; margin-bottom: 0.5em; background: #f9fafb; border-left: 4px solid {% if category == 'success' %}var(--color-success){% elif category == 'error' %}var(--color-error){% else %}var(--color-accent){% endif %};">
+                  {{ message }}
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+    <footer style="background: #f9fafb; border-top: 1.5px solid #e5e7eb; padding: 2rem 0; text-align: center; color: var(--color-text-secondary);">
+        <div style="max-width: 1200px; margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem;">
+            <div>&copy; {{ now().year }} LinkedIn Hero. All rights reserved.</div>
+            <div>
+                <a href="#" style="color: var(--color-accent); margin: 0 0.5rem;">Company</a>
+                <a href="#" style="color: var(--color-accent); margin: 0 0.5rem;">Privacy</a>
+                <a href="#" style="color: var(--color-accent); margin: 0 0.5rem;">Contact</a>
+                <a href="#" style="color: var(--color-accent); margin: 0 0.5rem;">Twitter</a>
+            </div>
+        </div>
+    </footer>
+</body>
+</html> 

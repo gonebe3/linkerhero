@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - LinkedIn Hero{% endblock %}
+{% block content %}
+<div style="max-width: 900px; margin: 2rem auto;">
+    <h1>Welcome, {{ current_user.username }}!</h1>
+    <div style="display: flex; flex-wrap: wrap; gap: 2rem; margin: 2rem 0;">
+        <div style="flex: 1; min-width: 220px; background: #f9fafb; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(37,99,235,0.04);">
+            <h2 style="color: var(--color-accent); font-size: 1.25rem;">Posts Used This Month</h2>
+            <div style="font-size: 2.5rem; font-weight: 700; color: var(--color-accent);">{{ current_user.posts_used_this_month }}</div>
+            <div style="color: var(--color-text-secondary); font-size: 1rem;">of {{ 10 if current_user.subscription_tier == 'free' else '∞' }} allowed</div>
+        </div>
+        <div style="flex: 1; min-width: 220px; background: #f9fafb; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(37,99,235,0.04);">
+            <h2 style="color: var(--color-accent); font-size: 1.25rem;">Subscription</h2>
+            <div style="font-size: 1.5rem; font-weight: 600;">{{ current_user.subscription_tier|capitalize }}</div>
+        </div>
+    </div>
+    <div style="margin-top: 3rem;">
+        <h2>Generate a LinkedIn Post</h2>
+        <div style="background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(37,99,235,0.04); padding: 2rem;">
+            <form method="post" action="/generate" id="generate-form">
+                <label for="url" style="font-weight: 600;">News Article URL</label><br>
+                <input type="url" id="url" name="url" placeholder="Paste a news article link..." required style="width: 100%; margin: 1rem 0;">
+                <button type="submit" class="btn">Generate Post</button>
+            </form>
+            <div id="generated-content" style="margin-top: 2rem;"></div>
+        </div>
+    </div>
+</div>
+<script>showSpinnerOnSubmit('#generate-form');</script>
+{% endblock %} 

@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block title %}LinkedIn Hero - AI-Powered LinkedIn Posts{% endblock %}
+{% block content %}
+<section style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; text-align: center;">
+    <div style="position: relative; margin-bottom: 2rem;">
+        <div class="floating" style="position: absolute; left: -60px; top: -30px;">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="AI Icon" style="height: 48px;">
+        </div>
+        <div class="floating" style="position: absolute; right: -60px; top: 10px; animation-delay: 1s;">
+            <svg width="48" height="48" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="24" cy="24" r="24" fill="#2563EB"/></svg>
+        </div>
+        <div class="floating" style="position: absolute; left: 50%; top: 80px; transform: translateX(-50%); animation-delay: 2s;">
+            <svg width="40" height="40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="40" height="40" rx="8" fill="#10B981"/></svg>
+        </div>
+        <h1>Turn News into <span style="color: var(--color-accent);">LinkedIn Gold</span></h1>
+        <p style="color: var(--color-text-secondary); font-size: 1.25rem; max-width: 600px; margin: 1rem auto 0 auto;">Effortlessly generate engaging LinkedIn posts from the latest news articles using AI. Save time, grow your influence, and never run out of content ideas.</p>
+        <a href="/register" class="btn" style="margin-top: 2rem; font-size: 1.25rem;">Get Started Free</a>
+    </div>
+</section>
+<section style="max-width: 1000px; margin: 3rem auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 2rem;">
+    <div style="background: #f9fafb; border-radius: 12px; padding: 2rem; box-shadow: 0 2px 8px rgba(37,99,235,0.04);">
+        <h2 style="color: var(--color-accent);">AI-Powered</h2>
+        <p>Leverage GPT-4 to craft professional, on-brand LinkedIn posts from any news article URL.</p>
+    </div>
+    <div style="background: #f9fafb; border-radius: 12px; padding: 2rem; box-shadow: 0 2px 8px rgba(37,99,235,0.04);">
+        <h2 style="color: var(--color-accent);">One-Click Sharing</h2>
+        <p>Copy, favorite, and share your generated posts directly to LinkedIn with a single click.</p>
+    </div>
+    <div style="background: #f9fafb; border-radius: 12px; padding: 2rem; box-shadow: 0 2px 8px rgba(37,99,235,0.04);">
+        <h2 style="color: var(--color-accent);">Track Usage</h2>
+        <p>Monitor your monthly post usage and upgrade for unlimited access as your brand grows.</p>
+    </div>
+</section>
+{% endblock %} 

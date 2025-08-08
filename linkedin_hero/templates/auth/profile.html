@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Profile - LinkedIn Hero{% endblock %}
+{% block content %}
+<div style="max-width: 500px; margin: 3rem auto; background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(37,99,235,0.04); padding: 2.5rem;">
+    <h1 style="text-align: center;">Profile</h1>
+    <div style="margin: 2rem 0;">
+        <div style="margin-bottom: 1rem;"><strong>Email:</strong> {{ current_user.email }}</div>
+        <div style="margin-bottom: 1rem;"><strong>Username:</strong> {{ current_user.username }}</div>
+        <div style="margin-bottom: 1rem;"><strong>Provider:</strong> {{ current_user.provider|capitalize }}</div>
+        <div style="margin-bottom: 1rem;"><strong>Subscription:</strong> {{ current_user.subscription_tier|capitalize }}</div>
+        <div style="margin-bottom: 1rem;"><strong>Joined:</strong> {{ current_user.created_at.strftime('%Y-%m-%d') }}</div>
+        <div style="margin-bottom: 1rem;"><strong>Last Login:</strong> {{ current_user.last_login.strftime('%Y-%m-%d %H:%M') if current_user.last_login else 'Never' }}</div>
+    </div>
+    <a href="/dashboard" class="btn" style="width: 100%;">Back to Dashboard</a>
+</div>
+{% endblock %} 

@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Login - LinkedIn Hero{% endblock %}
+{% block content %}
+<div style="max-width: 400px; margin: 3rem auto; background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(37,99,235,0.04); padding: 2.5rem;">
+    <h1 style="text-align: center;">Login</h1>
+    <form method="POST" action="" novalidate>
+        {{ form.hidden_tag() }}
+        <div style="margin-bottom: 1.5rem;">
+            {{ form.email.label(class_="form-label") }}<br>
+            {{ form.email(class_="form-control", placeholder="Email") }}
+            {% for error in form.email.errors %}<div class="text-error">{{ error }}</div>{% endfor %}
+        </div>
+        <div style="margin-bottom: 1.5rem;">
+            {{ form.password.label(class_="form-label") }}<br>
+            {{ form.password(class_="form-control", placeholder="Password") }}
+            {% for error in form.password.errors %}<div class="text-error">{{ error }}</div>{% endfor %}
+        </div>
+        <div style="margin-bottom: 1.5rem; display: flex; align-items: center;">
+            {{ form.remember_me() }} {{ form.remember_me.label }}
+        </div>
+        <button type="submit" class="btn" style="width: 100%;">Login</button>
+    </form>
+    <div style="text-align: center; margin: 1.5rem 0; color: var(--color-text-secondary);">or</div>
+    <a href="/auth/google" class="btn" style="background: #fff; color: var(--color-accent); border: 1.5px solid var(--color-accent); width: 100%; display: block; margin-bottom: 1rem;">Login with Google</a>
+    <div style="text-align: center; margin-top: 1rem;">
+        <span>Don't have an account?</span> <a href="/register" style="color: var(--color-accent); font-weight: 600;">Register</a>
+    </div>
+</div>
+{% endblock %} 
