@@ -15,9 +15,10 @@
 ## Step 2: Set Up Python App in cPanel
 1. Go to "Setup Python App"
 2. Create new application:
-   - **Application root**: `/home/ctkfigide/linkerhero.com`
+   - **Application root**: `/home/ctkfigide/linkerhero.com/linkedin_hero`  
+     (this folder contains `passenger_wsgi.py`)
    - **Application URL**: `linkerhero.com`
-   - **Application startup file**: `app.py`
+   - **Application startup file**: `passenger_wsgi.py`
    - **Application entry point**: `application`
    - **Python version**: 3.12 (or latest available)
 
@@ -26,22 +27,27 @@ In cPanel Python App settings, add these environment variables:
 ```
 FLASK_ENV=production
 SECRET_KEY=your-very-long-random-secret-key-here
-DATABASE_URL=mysql+pymysql://username:password@localhost/database_name
+DATABASE_URL=mysql+pymysql://cpaneluser_dbuser:dbpassword@localhost/cpaneluser_dbname
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
 ```
 
-## Step 4: Upload Project Files
+## Step 4: Upload or Clone Project Files
+Option A — Git (recommended):
+1. In cPanel, open "Git Version Control"
+2. Create a new repository and set **Clone URL** to your remote (GitHub/GitLab)
+3. Set **Repository Path** to `/home/ctkfigide/linkerhero.com` (the repo will clone here)
+
+Option B — Manual upload:
 1. Use cPanel File Manager or SFTP
-2. Upload all project files to `/home/ctkfigide/linkerhero.com/`
-3. Ensure `app.py` is in the root directory
+2. Upload the repository contents into `/home/ctkfigide/linkerhero.com/`
 
 ## Step 5: Install Dependencies
 1. Open cPanel Terminal or SSH
 2. Activate virtual environment:
    ```bash
    source /home/ctkfigide/virtualenv/linkerhero.com/3.12/bin/activate
-   cd /home/ctkfigide/linkerhero.com
+   cd /home/ctkfigide/linkerhero.com/linkedin_hero
    ```
 3. Install requirements:
    ```bash
@@ -49,9 +55,9 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
    ```
 
 ## Step 6: Initialize Database
-1. In the same terminal session:
+1. In the same terminal session, from `/home/ctkfigide/linkerhero.com/linkedin_hero`:
    ```bash
-   export FLASK_APP=app.py
+   export FLASK_APP=run.py
    flask db init
    flask db migrate -m "Initial migration"
    flask db upgrade
@@ -75,16 +81,18 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 
 ## File Structure on Server
 ```
-/home/ctkfigide/linkerhero.com/
-├── app.py (WSGI entry point)
-├── requirements.txt
-├── config.py
-├── app/
-│   ├── __init__.py
-│   ├── models.py
-│   ├── auth/
-│   └── main/
-├── templates/
-├── static/
-└── migrations/
+/home/ctkfigide/linkerhero.com/            # Git repo root
+└── linkedin_hero/                         # Application root (set this in cPanel)
+    ├── passenger_wsgi.py                  # WSGI entry point (application)
+    ├── requirements.txt
+    ├── config.py
+    ├── run.py
+    ├── app/
+    │   ├── __init__.py
+    │   ├── models.py
+    │   ├── auth/
+    │   └── main/
+    ├── templates/
+    ├── static/
+    └── migrations/
 ``` 
