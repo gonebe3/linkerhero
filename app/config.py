@@ -27,8 +27,15 @@ class Config:
             s = s[1:-1]
         return s
 
-    _db_runtime = _strip_psql(_db_runtime)
-    _db_direct = _strip_psql(_db_direct)
+    def _rewrite_driver(s: str | None) -> str | None:
+        if not s:
+            return s
+        if s.startswith("postgresql://"):
+            return "postgresql+psycopg://" + s[len("postgresql://") :]
+        return s
+
+    _db_runtime = _rewrite_driver(_strip_psql(_db_runtime))
+    _db_direct = _rewrite_driver(_strip_psql(_db_direct))
 
     SQLALCHEMY_DATABASE_URI: str = _db_runtime or "sqlite+pysqlite:///linkerhero.sqlite3"
     SQLALCHEMY_DATABASE_URI_DIRECT: str = _db_direct or _db_runtime or "sqlite+pysqlite:///linkerhero.sqlite3"

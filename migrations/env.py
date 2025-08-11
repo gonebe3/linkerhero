@@ -16,7 +16,17 @@ target_metadata = Base.metadata
 
 
 def get_url() -> str:
-    return os.getenv("DATABASE_URL_DIRECT") or os.getenv("DATABASE_URL") or "sqlite+pysqlite:///linkerhero.sqlite3"
+    url = os.getenv("DATABASE_URL_DIRECT") or os.getenv("DATABASE_URL")
+    if url:
+        s = url.strip()
+        if s.lower().startswith("psql "):
+            s = s[5:].strip()
+        if s.startswith("'") and s.endswith("'"):
+            s = s[1:-1]
+        if s.startswith("postgresql://"):
+            s = "postgresql+psycopg://" + s[len("postgresql://") :]
+        return s
+    return "sqlite+pysqlite:///linkerhero.sqlite3"
 
 
 def run_migrations_offline() -> None:
