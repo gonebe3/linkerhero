@@ -1,0 +1,16 @@
+{% for v, s, b in variants %}
+<div class="card">
+  <div class="score">Score: {{ s }}/100</div>
+  <pre>{{ v }}</pre>
+  <ul>
+    <li>Hook: {{ b.hook }}</li>
+    <li>Structure: {{ b.structure }}</li>
+    <li>Emotion: {{ b.emotion }}</li>
+    <li>CTA: {{ b.cta }}</li>
+    <li>Topicality: {{ b.topicality }}</li>
+    <li>Readability: {{ b.readability }}</li>
+  </ul>
+  <button onclick="navigator.clipboard.writeText(this.previousElementSibling.previousElementSibling.innerText)">Copy</button>
+</div>
+{% endfor %}
+

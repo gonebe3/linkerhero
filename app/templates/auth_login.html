@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Login</h2>
+<form method="post">
+  <input type="email" name="email" placeholder="you@example.com" required />
+  <button type="submit">Send magic link</button>
+</form>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+{% endblock %}
+

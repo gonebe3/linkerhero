@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Generate LinkedIn Drafts</h2>
+<form hx-post="/api/generate" hx-target="#results" hx-swap="innerHTML">
+  <label>Paste URL</label>
+  <input type="url" name="url" placeholder="https://example.com/article" />
+  <label>Or pick article</label>
+  <select name="article_id">
+    <option value="">--</option>
+    {% for a in articles %}
+      <option value="{{ a.id }}">{{ a.title[:80] }}</option>
+    {% endfor %}
+  </select>
+  <label>Persona</label>
+  <select name="persona">
+    <option>PM</option>
+    <option>Consultant</option>
+    <option>Engineer</option>
+    <option>Founder</option>
+  </select>
+  <label>Tone</label>
+  <select name="tone">
+    <option>analytical</option>
+    <option>bold</option>
+    <option>conversational</option>
+  </select>
+  <button type="submit">Generate</button>
+</form>
+<div id="results"></div>
+{% endblock %}
+

@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Latest Articles</h2>
+<form method="get" action="/news">
+  <input type="text" name="q" value="{{ q }}" placeholder="Search" />
+  <button type="submit">Search</button>
+  {% if session.get('user_id') %}
+  <button hx-post="/api/news/refresh" hx-swap="none" type="button">Refresh</button>
+  {% endif %}
+  </form>
+<ul class="list">
+  {% for a in articles %}
+  <li>
+    <a href="{{ a.url }}" target="_blank">{{ a.title }}</a>
+    <div class="summary">{{ a.summary[:240] }}...</div>
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}
+

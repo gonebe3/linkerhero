@@ -1,0 +1,12 @@
+body { font-family: system-ui, sans-serif; margin: 0; padding: 0; background: #fafafa; }
+.nav { display: flex; gap: 1rem; padding: 1rem; background: #111; }
+.nav a { color: #fff; text-decoration: none; }
+.container { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+.hero { background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.btn { display: inline-block; padding: .5rem 1rem; background: #2563eb; color: white; border-radius: 6px; }
+.list { list-style: none; padding: 0; }
+.list li { margin: 1rem 0; padding: 1rem; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+.card { margin: 1rem 0; padding: 1rem; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+.score { font-weight: 700; }
+pre { white-space: pre-wrap; }
+

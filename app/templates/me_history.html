@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Your recent generations</h2>
+<ul class="list">
+  {% for g in generations %}
+    <li>
+      <div>Score: {{ g.score }}</div>
+      <pre>{{ g.draft_text[:300] }}...</pre>
+    </li>
+  {% endfor %}
+</ul>
+{% endblock %}
+
