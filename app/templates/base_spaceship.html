@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ app_name }} - AI-Powered LinkedIn Post Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/spaceship.css') }}" />
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/" class="nav-brand">LinkerHero</a>
+        <div class="nav-links">
+          <a href="/">Home</a>
+          <a href="/pricing">Pricing</a>
+          <a href="/generate">Generate</a>
+          {% if session.get('user_id') %}
+          <a href="/me/dashboard">Dashboard</a>
+          <a href="/logout">Logout</a>
+          {% else %}
+          <a href="/login">Login</a>
+          <a href="/register" class="btn btn-cta" style="padding:8px 16px; border-radius:10px;">Try it for Free</a>
+          {% endif %}
+        </div>
+      </div>
+    </nav>
+    
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+    
+    <script src="{{ url_for('static', filename='js/spaceship.js') }}"></script>
+  </body>
+</html>

@@ -1,0 +1,45 @@
+{% extends 'base_spaceship.html' %}
+{% block content %}
+<div class="container" style="padding-top: 6rem;">
+  <div class="section" style="max-width: 520px; margin: 0 auto;">
+    <div class="text-center mb-6">
+      <h1 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 1rem; color: white;">Create your account</h1>
+      <p style="font-size: 1.1rem; color: rgba(255, 255, 255, 0.8);">Start with the Free plan. Upgrade anytime.</p>
+    </div>
+
+    <div class="card">
+      <form method="post" action="/register">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" name="email" class="form-input" placeholder="you@example.com" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" name="password" class="form-input" placeholder="At least 8 chars, 1 uppercase, 1 special" required />
+        </div>
+        <div class="text-center">
+          <button type="submit" class="btn btn-cta" style="width:100%; padding:1rem;">Create Account</button>
+        </div>
+      </form>
+
+      {% if error %}
+      <div class="error mt-4">{{ error }}</div>
+      {% endif %}
+
+      <div class="text-center" style="margin: 1rem 0; color: rgba(255,255,255,.6);">or</div>
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:center;">
+        <a href="/oauth/google/start" class="btn" style="background:rgba(255,255,255,.15);">Continue with Google</a>
+        <a href="/oauth/linkedin/start" class="btn" style="background:rgba(255,255,255,.15);">Continue with LinkedIn</a>
+      </div>
+    </div>
+
+    <div class="text-center mt-4">
+      <p style="color: rgba(255, 255, 255, 0.7); font-size: 0.9rem;">
+        Already have an account? <a href="/login" style="color:#ff9913; text-decoration:none;">Sign in</a>.
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+

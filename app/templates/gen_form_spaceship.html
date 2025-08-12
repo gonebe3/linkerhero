@@ -1,0 +1,66 @@
+{% extends 'base_spaceship.html' %}
+{% block content %}
+<div class="container" style="padding-top: 6rem;">
+  <div class="section">
+    <div class="text-center mb-6">
+      <h1 style="font-size: 2.5rem; font-weight: 800; margin-bottom: 1rem; color: white;">Generate LinkedIn Drafts</h1>
+      <p style="font-size: 1.2rem; color: rgba(255, 255, 255, 0.8);">Transform any content into viral LinkedIn posts with AI-powered scoring</p>
+    </div>
+    
+    <div class="card">
+      <form hx-post="/api/generate" hx-target="#results" hx-swap="innerHTML" hx-indicator="#loading">
+        <div class="form-group">
+          <label class="form-label">🔗 Paste Article URL</label>
+          <input type="url" name="url" class="form-input" placeholder="https://example.com/article" />
+          <p style="font-size: 0.9rem; color: rgba(255, 255, 255, 0.6); margin-top: 0.5rem;">Or choose from recent articles below</p>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">📰 Or Select Recent Article</label>
+          <select name="article_id" class="form-select">
+            <option value="">-- Choose from recent articles --</option>
+            {% for a in articles %}
+              <option value="{{ a.id }}">{{ a.title[:80] }}...</option>
+            {% endfor %}
+          </select>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">👤 Your Persona</label>
+            <select name="persona" class="form-select">
+              <option value="PM">Product Manager</option>
+              <option value="Consultant">Consultant</option>
+              <option value="Engineer">Engineer</option>
+              <option value="Founder">Founder</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">🎭 Tone of Voice</label>
+            <select name="tone" class="form-select">
+              <option value="analytical">Analytical</option>
+              <option value="bold">Bold</option>
+              <option value="conversational">Conversational</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="text-center mt-4">
+          <button type="submit" class="btn btn-cta" style="font-size: 1.2rem; padding: 1.2rem 3rem;">
+            ✨ Generate Posts
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <div id="loading" class="htmx-indicator" style="text-align: center; margin: 2rem 0;">
+    <div class="card">
+      <div class="spinner" style="margin: 2rem auto;"></div>
+      <p style="color: white; font-size: 1.1rem;">🚀 AI is crafting your posts...</p>
+    </div>
+  </div>
+  
+  <div id="results"></div>
+</div>
+{% endblock %}

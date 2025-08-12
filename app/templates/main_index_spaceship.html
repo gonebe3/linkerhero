@@ -1,0 +1,63 @@
+{% extends 'base_spaceship.html' %}
+{% block content %}
+<section class="hero">
+  <div class="hero-content">
+    <h1>Newest AI content generation platform. In your hands.</h1>
+    <p>Turn any news or ideas into viral content in seconds.</p>
+    <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-top: 32px;">
+      <a href="/login" class="btn btn-cta">Get Started Free</a>
+      <a href="/pricing" class="btn btn-secondary">View Pricing</a>
+    </div>
+  </div>
+</section>
+
+<div class="container">
+  <section class="section parallax-left">
+    <div class="section-header">
+      <h2>How it works</h2>
+      <p>Three simple steps to create engaging LinkedIn content</p>
+    </div>
+    
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">📰</div>
+        <h3>Paste any URL</h3>
+        <p>Drop in any news article, blog post, or content URL. Our AI extracts key insights automatically.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon">🎯</div>
+        <h3>Choose your style</h3>
+        <p>Select your persona and tone for perfect alignment with your professional brand.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <h3>Get scored drafts</h3>
+        <p>Receive 3 optimized posts with detailed 0-100 scores and improvement suggestions.</p>
+      </div>
+    </div>
+  </section>
+
+  {% if not is_logged_in %}
+  <section class="section parallax-right">
+    <div class="section-header">
+      <h2>Ready to create better content?</h2>
+      <p>Join thousands of professionals using AI to enhance their LinkedIn presence</p>
+    </div>
+    <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+      <a href="/login" class="btn btn-cta">Get Started Free</a>
+      <a href="/pricing" class="btn btn-secondary">View Pricing</a>
+    </div>
+  </section>
+  {% endif %}
+</div>
+
+<!-- Information Banner -->
+<footer class="info-banner">
+  <div class="info-content">
+    <p>&copy; 2025 UAB "Laisvės Link" | All Rights Reserved</p>
+    <p class="disclaimer">This platform operates independently and is not affiliated with, endorsed by, or connected to LinkedIn Corporation. We do not use LinkedIn's proprietary algorithms, data, or services. All content generation is powered by our own AI technology and does not replicate LinkedIn's functionality or violate their terms of service.</p>
+  </div>
+</footer>
+{% endblock %}

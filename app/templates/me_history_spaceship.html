@@ -1,0 +1,96 @@
+{% extends 'base_spaceship.html' %}
+{% block content %}
+<div class="container" style="padding-top: 6rem;">
+  <div class="section">
+    <div class="text-center mb-6">
+      <h1 style="font-size: 2.5rem; font-weight: 800; margin-bottom: 1rem; color: white;">📊 Your Generation History</h1>
+      <p style="font-size: 1.2rem; color: rgba(255, 255, 255, 0.8);">Track your AI-generated LinkedIn posts and their performance scores</p>
+    </div>
+    
+    {% if generations %}
+    <div class="list">
+      {% for g in generations %}
+      <div class="list-item">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
+          <div>
+            <h3 style="color: white; font-size: 1.2rem; margin-bottom: 0.5rem;">
+              Generated {{ g.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+            </h3>
+            <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.9rem;">
+              🤖 {{ g.model|title }} • 👤 {{ g.prompt.split('=')[1].split(',')[0] if '=' in g.prompt else 'Unknown' }} • 🎭 {{ g.prompt.split('tone=')[1] if 'tone=' in g.prompt else 'Unknown' }}
+            </div>
+          </div>
+          <div class="score {% if g.score >= 80 %}score-high{% elif g.score >= 60 %}score-medium{% else %}score-low{% endif %}">
+            {{ g.score }}/100
+          </div>
+        </div>
+        
+        <div class="generated-content" style="max-height: 200px; overflow: hidden; position: relative;">
+          {{ g.draft_text[:400] }}{% if g.draft_text|length > 400 %}...{% endif %}
+        </div>
+        
+        {% if g.score_breakdown %}
+        <div class="score-breakdown" style="margin-top: 1.5rem;">
+          {% for key, value in g.score_breakdown.items() %}
+          <div class="score-item">
+            <div class="score-item-label">{{ key|title }}</div>
+            <div class="score-item-value">{{ value }}</div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        
+        <div class="text-center mt-4">
+          <button class="btn btn-copy" onclick="copyToClipboard(this, `{{ g.draft_text|replace('`', '\\`')|replace('\\', '\\\\')|replace('\n', '\\n') }}`)">
+            📋 Copy Post
+          </button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="card text-center">
+      <div style="font-size: 4rem; margin-bottom: 2rem;">📝</div>
+      <h3 style="color: white; margin-bottom: 1rem; font-size: 1.5rem;">No Posts Generated Yet</h3>
+      <p style="color: rgba(255, 255, 255, 0.8); margin-bottom: 2rem; font-size: 1.1rem;">
+        Start creating amazing LinkedIn content with AI assistance!
+      </p>
+      <a href="/generate" class="btn btn-cta" style="font-size: 1.1rem; padding: 1rem 2rem;">
+        ✨ Generate Your First Post
+      </a>
+    </div>
+    {% endif %}
+    
+    <div class="text-center mt-6">
+      <a href="/generate" class="btn btn-secondary">🚀 Create New Post</a>
+      <a href="/news" class="btn" style="margin-left: 1rem;">📰 Browse Articles</a>
+    </div>
+  </div>
+</div>
+
+<script>
+function copyToClipboard(button, text) {
+  navigator.clipboard.writeText(text).then(function() {
+    const originalText = button.innerHTML;
+    button.innerHTML = '✅ Copied!';
+    button.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+    
+    setTimeout(() => {
+      button.innerHTML = originalText;
+      button.style.background = '';
+    }, 2000);
+    
+    // Show notification if function exists
+    if (typeof showNotification === 'function') {
+      showNotification('Post copied to clipboard!', 'success');
+    }
+  }).catch(function(err) {
+    console.error('Failed to copy text: ', err);
+    if (typeof showNotification === 'function') {
+      showNotification('Failed to copy text', 'error');
+    }
+  });
+}
+</script>
+{% endblock %}
+

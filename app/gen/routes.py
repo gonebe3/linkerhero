@@ -24,7 +24,7 @@ def generate_form():
             .scalars()
             .all()
         )
-    return render_template("gen_form.html", articles=articles)
+    return render_template("gen_form_spaceship.html", articles=articles)
 
 
 @bp.route("/api/generate", methods=["POST"])
@@ -80,5 +80,5 @@ def api_generate():
             )
             s.add(g)
 
-    return render_template("gen_results.html", variants=scored)
+    return render_template("gen_results_spaceship.html", variants=scored)
 

@@ -22,7 +22,7 @@ def news_board():
         articles = [a for a in articles if q in (a.title.lower() + " " + a.summary.lower())]
     start = (page - 1) * page_size
     end = start + page_size
-    return render_template("news_board.html", articles=articles[start:end], page=page, q=q)
+    return render_template("news_board_spaceship.html", articles=articles[start:end], page=page, q=q)
 
 
 @bp.route("/api/news/refresh", methods=["POST"])

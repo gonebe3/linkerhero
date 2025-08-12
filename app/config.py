@@ -4,8 +4,32 @@ import os
 from dataclasses import dataclass
 from dotenv import load_dotenv
 
-
+# Load .env file
 load_dotenv()
+
+
+def normalize_neon_url(url: str | None) -> str | None:
+    """Clean up Neon URLs from .env that might have psql wrapper or quotes"""
+    if not url:
+        return None
+    
+    s = url.strip()
+    
+    # Remove psql command wrapper if present
+    if s.lower().startswith("psql "):
+        s = s[5:].strip()
+    
+    # Remove surrounding quotes if present
+    if s.startswith("'") and s.endswith("'"):
+        s = s[1:-1]
+    elif s.startswith('"') and s.endswith('"'):
+        s = s[1:-1]
+    
+    # Convert to psycopg3 format
+    if s.startswith("postgresql://"):
+        s = "postgresql+psycopg://" + s[len("postgresql://"):]
+    
+    return s
 
 
 @dataclass
@@ -13,30 +37,10 @@ class Config:
     FLASK_ENV: str = os.getenv("FLASK_ENV", "development")
     SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret")
 
-    # Accept multiple env naming styles
-    _db_runtime = os.getenv("DATABASE_URL") or os.getenv("DB_URL")
-    _db_direct = os.getenv("DATABASE_URL_DIRECT") or os.getenv("DB_URL_DIRECT")
-    # Normalize accidental inclusion of `psql '...'` wrapper
-    def _strip_psql(s: str | None) -> str | None:
-        if not s:
-            return s
-        s = s.strip()
-        if s.lower().startswith("psql "):
-            s = s[5:].strip()
-        if s.startswith("'") and s.endswith("'"):
-            s = s[1:-1]
-        return s
-
-    def _rewrite_driver(s: str | None) -> str | None:
-        if not s:
-            return s
-        if s.startswith("postgresql://"):
-            return "postgresql+psycopg://" + s[len("postgresql://") :]
-        return s
-
-    _db_runtime = _rewrite_driver(_strip_psql(_db_runtime))
-    _db_direct = _rewrite_driver(_strip_psql(_db_direct))
-
+    # Database URLs - prioritize your .env variable names
+    _db_runtime = normalize_neon_url(os.getenv("DATABASE_URL"))
+    _db_direct = normalize_neon_url(os.getenv("DATABASE_URL_DIRECT"))
+    
     SQLALCHEMY_DATABASE_URI: str = _db_runtime or "sqlite+pysqlite:///linkerhero.sqlite3"
     SQLALCHEMY_DATABASE_URI_DIRECT: str = _db_direct or _db_runtime or "sqlite+pysqlite:///linkerhero.sqlite3"
 
@@ -44,13 +48,14 @@ class Config:
     SESSION_COOKIE_HTTPONLY: bool = True
     SESSION_COOKIE_SAMESITE: str = "Lax"
 
-    # Support both custom and Flask-Mail-like keys
-    MAIL_FROM: str | None = os.getenv("MAIL_FROM") or os.getenv("MAIL_DEFAULT_SENDER")
-    SMTP_HOST: str | None = os.getenv("SMTP_HOST") or os.getenv("MAIL_SERVER")
-    SMTP_PORT: int = int(os.getenv("SMTP_PORT") or os.getenv("MAIL_PORT") or "587")
-    SMTP_USER: str | None = os.getenv("SMTP_USER") or os.getenv("MAIL_USERNAME")
-    SMTP_PASS: str | None = os.getenv("SMTP_PASS") or os.getenv("MAIL_PASSWORD")
+    # Email settings - support your Gmail setup
+    MAIL_FROM: str | None = os.getenv("MAIL_DEFAULT_SENDER") or os.getenv("MAIL_FROM")
+    SMTP_HOST: str | None = os.getenv("MAIL_SERVER") or os.getenv("SMTP_HOST")
+    SMTP_PORT: int = int(os.getenv("MAIL_PORT") or os.getenv("SMTP_PORT") or "587")
+    SMTP_USER: str | None = os.getenv("MAIL_USERNAME") or os.getenv("SMTP_USER")
+    SMTP_PASS: str | None = os.getenv("MAIL_PASSWORD") or os.getenv("SMTP_PASS")
 
+    # LLM settings
     LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "anthropic")
     ANTHROPIC_API_KEY: str | None = os.getenv("ANTHROPIC_API_KEY")
     OPENAI_API_KEY: str | None = os.getenv("OPENAI_API_KEY")

@@ -1,0 +1,115 @@
+{% extends 'base_spaceship.html' %}
+{% block content %}
+<div class="container" style="padding-top: 120px;">
+  <section class="section">
+    <div class="section-header">
+      <h1 style="color:#fff">Simple, transparent pricing</h1>
+      <p>Choose the plan that works best for you. Start free, upgrade anytime.</p>
+    </div>
+    
+    <div class="pricing-grid" style="grid-template-columns: repeat(3, minmax(300px, 1fr));">
+      <!-- Free Tier -->
+      <div class="pricing-card">
+        <h3 class="pricing-tier">Free</h3>
+        <div class="pricing-price">$0</div>
+        <div class="pricing-period">per month</div>
+        <p class="pricing-description">Perfect for trying out our AI content generation</p>
+        
+        <ul class="pricing-features">
+          <li>3 Claude Sonnet 4.1 generations</li>
+          <li>2 ChatGPT 5 generations</li>
+          <li>Basic scoring & feedback</li>
+          <li>Standard support</li>
+        </ul>
+        
+        <a href="/login" class="btn btn-secondary pricing-cta">Get Started Free</a>
+      </div>
+      
+      <!-- Personal Tier -->
+      <div class="pricing-card featured">
+        <h3 class="pricing-tier">Personal</h3>
+        <div class="pricing-price">
+          <span class="currency">$</span>8.99
+        </div>
+        <div class="pricing-period">per month</div>
+        <p class="pricing-description">For professionals who create content regularly</p>
+        
+        <ul class="pricing-features">
+          <li>30 Claude Sonnet 4.1 generations</li>
+          <li>50 ChatGPT 5 generations</li>
+          <li>Advanced scoring & insights</li>
+          <li>Priority support</li>
+          <li>Export to multiple formats</li>
+          <li>Content history & analytics</li>
+        </ul>
+        
+        <a href="/login" class="btn pricing-cta">Start Personal Plan</a>
+      </div>
+      
+      <!-- Business Tier (Coming Soon) -->
+      <div class="pricing-card">
+        <h3 class="pricing-tier">Business</h3>
+        <div class="pricing-price">Coming Soon</div>
+        <div class="pricing-period">Team plans</div>
+        <p class="pricing-description">Unlimited access for organizations with seats and admin tools.</p>
+        <ul class="pricing-features">
+          <li>Team seats</li>
+          <li>Admin controls</li>
+          <li>Shared billing</li>
+        </ul>
+        <a href="mailto:hello@linkerhero.com?subject=Business%20Plan%20(Coming%20Soon)" class="btn btn-secondary pricing-cta">Notify Me</a>
+      </div>
+    </div>
+  </section>
+  
+  <!-- FAQ Section -->
+  <section class="section">
+    <div class="section-header">
+      <h2>Frequently asked questions</h2>
+      <p>Everything you need to know about our pricing and plans</p>
+    </div>
+    
+    <div style="max-width: 800px; margin: 0 auto;">
+      <div style="margin-bottom: 32px;">
+        <h3 style="font-size: 18px; font-weight: 600; color: white; margin: 0 0 8px 0;">What happens when I reach my generation limit?</h3>
+        <p style="font-size: 16px; color: rgba(255, 255, 255, 0.8); margin: 0; line-height: 1.5;">Your account will be paused until the next billing cycle. You can upgrade to a higher plan anytime to get more generations immediately.</p>
+      </div>
+      
+      <div style="margin-bottom: 32px;">
+        <h3 style="font-size: 18px; font-weight: 600; color: white; margin: 0 0 8px 0;">Can I cancel anytime?</h3>
+        <p style="font-size: 16px; color: rgba(255, 255, 255, 0.8); margin: 0; line-height: 1.5;">Yes, you can cancel your subscription at any time. You'll continue to have access until the end of your billing period.</p>
+      </div>
+      
+      <div style="margin-bottom: 32px;">
+        <h3 style="font-size: 18px; font-weight: 600; color: white; margin: 0 0 8px 0;">What's the difference between Claude and ChatGPT generations?</h3>
+        <p style="font-size: 16px; color: rgba(255, 255, 255, 0.8); margin: 0; line-height: 1.5;">Claude Sonnet 4.1 excels at analytical and structured content, while ChatGPT 5 is great for creative and conversational posts. Both provide unique styles to match your needs.</p>
+      </div>
+      
+      <div style="margin-bottom: 32px;">
+        <h3 style="font-size: 18px; font-weight: 600; color: white; margin: 0 0 8px 0;">Do you offer annual discounts?</h3>
+        <p style="font-size: 16px; color: rgba(255, 255, 255, 0.8); margin: 0; line-height: 1.5;">Yes! Contact us for annual pricing options with significant savings.</p>
+      </div>
+    </div>
+  </section>
+  
+  <!-- CTA Section -->
+  <section class="section">
+    <div class="section-header">
+      <h2>Ready to get started?</h2>
+      <p>Join thousands of professionals creating better LinkedIn content with AI</p>
+    </div>
+    <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+      <a href="/login" class="btn">Start Free Trial</a>
+      <a href="mailto:hello@linkerhero.com" class="btn btn-secondary">Contact Sales</a>
+    </div>
+  </section>
+</div>
+
+<!-- Information Banner -->
+<footer class="info-banner">
+  <div class="info-content">
+    <p>&copy; 2025 UAB "Laisvės Link" | All Rights Reserved</p>
+    <p class="disclaimer">This platform operates independently and is not affiliated with, endorsed by, or connected to LinkedIn Corporation. We do not use LinkedIn's proprietary algorithms, data, or services. All content generation is powered by our own AI technology and does not replicate LinkedIn's functionality or violate their terms of service.</p>
+  </div>
+</footer>
+{% endblock %}

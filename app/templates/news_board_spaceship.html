@@ -1,0 +1,80 @@
+{% extends 'base_spaceship.html' %}
+{% block content %}
+<div class="container" style="padding-top: 6rem;">
+  <div class="section">
+    <div class="text-center mb-6">
+      <h1 style="font-size: 2.5rem; font-weight: 800; margin-bottom: 1rem; color: white;">📰 Latest Articles</h1>
+      <p style="font-size: 1.2rem; color: rgba(255, 255, 255, 0.8);">Fresh content from top tech and business sources</p>
+    </div>
+    
+    <div class="card" style="margin-bottom: 3rem;">
+      <form method="get" action="/news" style="display: flex; gap: 1rem; align-items: end; flex-wrap: wrap;">
+        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+          <label class="form-label">🔍 Search Articles</label>
+          <input type="text" name="q" value="{{ q }}" class="form-input" placeholder="Search by title or content..." />
+        </div>
+        <button type="submit" class="btn" style="height: fit-content;">Search</button>
+        {% if session.get('user_id') %}
+        <button hx-post="/api/news/refresh" hx-swap="none" type="button" class="btn btn-secondary" style="height: fit-content;">
+          🔄 Refresh Feed
+        </button>
+        {% endif %}
+      </form>
+    </div>
+    
+    {% if articles %}
+    <div class="list">
+      {% for a in articles %}
+      <div class="list-item">
+        <h3>
+          <a href="{{ a.url }}" target="_blank">{{ a.title }}</a>
+        </h3>
+        <div class="summary">{{ a.summary[:300] }}{% if a.summary|length > 300 %}...{% endif %}</div>
+        <div style="margin-top: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+          <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.9rem;">
+            📅 {{ a.created_at.strftime('%B %d, %Y') }}
+            {% if a.topics %}
+            <span style="margin-left: 1rem;">
+              🏷️ 
+              {% for topic in a.topics.keys()[:3] %}
+                <span style="background: rgba(255, 255, 255, 0.1); padding: 0.2rem 0.5rem; border-radius: 1rem; margin-right: 0.5rem; font-size: 0.8rem;">{{ topic }}</span>
+              {% endfor %}
+            </span>
+            {% endif %}
+          </div>
+          <a href="/generate?url={{ a.url|urlencode }}" class="btn" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+            ✨ Generate Post
+          </a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="card text-center">
+      <div style="font-size: 4rem; margin-bottom: 1rem;">📭</div>
+      <h3 style="color: white; margin-bottom: 1rem;">No articles found</h3>
+      <p style="color: rgba(255, 255, 255, 0.8); margin-bottom: 2rem;">
+        {% if q %}
+          Try a different search term or browse all articles.
+        {% else %}
+          No articles have been ingested yet. Refresh the feed to get started.
+        {% endif %}
+      </p>
+      {% if session.get('user_id') %}
+      <button hx-post="/api/news/refresh" hx-swap="none" class="btn btn-cta">
+        🔄 Refresh Feed Now
+      </button>
+      {% endif %}
+    </div>
+    {% endif %}
+    
+    {% if articles and articles|length == 20 %}
+    <div class="text-center mt-4">
+      <a href="/news?page={{ (page or 1) + 1 }}{% if q %}&q={{ q }}{% endif %}" class="btn btn-secondary">
+        📄 Load More Articles
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
