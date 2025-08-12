@@ -31,7 +31,11 @@ def generate_form_v2():
 def api_generate():
     form = GenerateForm()
     if not form.validate_on_submit():
-        return render_template("gen_results_spaceship.html", variants=[], error=" ".join([*sum(form.errors.values(), [])]))
+        return render_template(
+            "gen_results_spaceship.html",
+            variants=[],
+            error=" ".join([*sum(form.errors.values(), [])]) or "Please provide either a valid URL or your text (not both).",
+        )
     user_id = session.get("user_id")
     if not user_id:
         return jsonify({"error": "login required"}), 401
@@ -71,7 +75,11 @@ def api_generate():
 
     # Enforce mutual exclusivity: one of (url or text), not both
     if url and (form.text.data or "").strip():
-        return render_template("gen_results_spaceship.html", variants=[], error="Please provide either a URL or your own text — not both.")
+        return render_template(
+            "gen_results_spaceship.html",
+            variants=[],
+            error="Please provide either a URL or your own text — not both.",
+        )
     if not (url or source_text):
         return render_template("gen_results_spaceship.html", variants=[], error="Please provide a URL or paste your text.")
 
@@ -90,7 +98,7 @@ def api_generate():
         source_text=source_text,
         persona=persona,
         tone=tone,
-        n_variants=3,
+        n_variants=1,
         max_tokens=400,
         keywords=list(kw_dict.keys()),
         hook_type=hook_type,
@@ -99,18 +107,20 @@ def api_generate():
     # MVP: no scoring; just pass strings to template
     results = variants
 
-    with db_session() as s:
-        for v in results:
-            g = Generation(
-                user_id=user_id,
-                article_id=(selected_article.id if selected_article else None),
-                model=("gpt-5" if model_choice in {"gpt", "gpt5", "openai", "chatgpt", "gpt-5"} else "claude-3-5-sonnet-20240620"),
-                prompt=f"persona={persona}, tone={tone}, hook_type={hook_type}",
-                draft_text=v,
-                persona=persona,
-                tone=tone,
-            )
-            s.add(g)
+    # Persist only if a user is logged in
+    if user_id:
+        with db_session() as s:
+            for v in results:
+                g = Generation(
+                    user_id=user_id,
+                    article_id=(selected_article.id if selected_article else None),
+                    model=("gpt-5" if model_choice in {"gpt", "gpt5", "openai", "chatgpt", "gpt-5"} else "claude-3-5-sonnet-20240620"),
+                    prompt=f"persona={persona}, tone={tone}, hook_type={hook_type}",
+                    draft_text=v,
+                    persona=persona,
+                    tone=tone,
+                )
+                s.add(g)
 
     return render_template("gen_results_spaceship.html", variants=results)
 
