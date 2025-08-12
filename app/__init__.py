@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from flask import Flask
 from .config import Config
-from .db import init_engine_and_session, db_session
-from .models import Base
+from .db import db, db_session
 from sqlalchemy import text
 
 from .main.routes import bp as main_bp
@@ -16,57 +15,66 @@ def create_app() -> Flask:
     app = Flask(__name__, instance_relative_config=False)
     app.config.from_object(Config())
 
-    init_engine_and_session(app.config["SQLALCHEMY_DATABASE_URI"])  # pooled/runtime
+    # Initialize Flask-SQLAlchemy
+    app.config.setdefault("SQLALCHEMY_TRACK_MODIFICATIONS", False)
+    db.init_app(app)
+    # Ensure models are imported so metadata is populated for Alembic autogenerate
+    from . import models as _models  # noqa: F401
 
-    # Provide Alembic CLI via Flask (without Flask-SQLAlchemy)
-    # This gives you `flask db` commands that proxy to Alembic using
-    # the existing migrations/env.py which reads DATABASE_URL from .env
-    import os
+    # Initialize Flask-Alembic to provide `flask db` commands
+    from flask_alembic import Alembic
     import click
+    alembic = Alembic()
+    alembic.init_app(app)
+
+    # Provide familiar `flask db` commands that proxy to Alembic directly
+    import os
     from alembic import command as alembic_command
     from alembic.config import Config as AlembicConfig
 
     def _alembic_cfg() -> AlembicConfig:
-        # Point to repo root alembic.ini
         repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
         ini_path = os.path.join(repo_root, "alembic.ini")
         cfg = AlembicConfig(ini_path)
-        # Ensure script location resolves to the migrations folder in repo root
         cfg.set_main_option("script_location", os.path.join(repo_root, "migrations"))
+        # URL is taken from migrations/env.py via current_app; cfg url here is optional
         return cfg
 
-    @app.cli.group("db")
-    def db_group() -> None:
-        """Perform database migrations (Alembic)."""
+    @app.cli.group('db')
+    def db_cli():
+        """Database migration commands (Alembic)."""
         pass
 
-    @db_group.command("current")
-    def db_current() -> None:
-        alembic_command.current(_alembic_cfg(), verbose=True)
-
-    @db_group.command("heads")
-    def db_heads() -> None:
-        alembic_command.heads(_alembic_cfg(), verbose=True)
-
-    @db_group.command("branches")
-    def db_branches() -> None:
-        alembic_command.branches(_alembic_cfg())
-
-    @db_group.command("upgrade")
-    @click.argument("rev", default="head")
-    def db_upgrade(rev: str) -> None:
-        alembic_command.upgrade(_alembic_cfg(), rev)
-
-    @db_group.command("downgrade")
-    @click.argument("rev", default="-1")
-    def db_downgrade(rev: str) -> None:
-        alembic_command.downgrade(_alembic_cfg(), rev)
-
-    @db_group.command("revision")
-    @click.option("--message", "message", "-m", default="", help="Revision message")
+    @db_cli.command('revision')
+    @click.option("--message", "-m", required=False, default="", help="Revision message")
     @click.option("--autogenerate", is_flag=True, default=True)
     def db_revision(message: str, autogenerate: bool) -> None:
         alembic_command.revision(_alembic_cfg(), message=message, autogenerate=autogenerate)
+
+    @db_cli.command('upgrade')
+    @click.argument("revision", required=False, default="head")
+    def db_upgrade(revision: str) -> None:
+        alembic_command.upgrade(_alembic_cfg(), revision)
+
+    @db_cli.command('downgrade')
+    @click.argument("revision", required=False, default="-1")
+    def db_downgrade(revision: str) -> None:
+        alembic_command.downgrade(_alembic_cfg(), revision)
+
+    @db_cli.command('current')
+    @click.option("--verbose", is_flag=True, default=False)
+    def db_current(verbose: bool) -> None:
+        alembic_command.current(_alembic_cfg(), verbose=verbose)
+
+    @db_cli.command('heads')
+    @click.option("--verbose", is_flag=True, default=False)
+    def db_heads(verbose: bool) -> None:
+        alembic_command.heads(_alembic_cfg(), verbose=verbose)
+
+    @db_cli.command('history')
+    @click.option("--verbose", is_flag=True, default=False)
+    def db_history(verbose: bool) -> None:
+        alembic_command.history(_alembic_cfg(), verbose=verbose)
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
@@ -96,8 +104,8 @@ def create_app() -> Flask:
 
     @app.cli.command("db:ping")
     def db_ping() -> None:
-        with db_session() as session:
-            session.execute(text("SELECT 1"))
+        session = db.session
+        session.execute(text("SELECT 1"))
         print("ok")
 
     from .news.rss import refresh_feeds

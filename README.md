@@ -49,6 +49,26 @@ make migrate   # upgrade to head
 
 Alembic uses `DATABASE_URL_DIRECT`.
 
+## Migrations (direct CLI; Flask-SQLAlchemy + Alembic)
+
+Windows PowerShell examples:
+
+```
+# Ensure venv is active
+. .venv\Scripts\Activate.ps1
+
+# Create revision from current models
+python -m flask --app app:create_app db revision -m "sync models" --autogenerate
+
+# Apply migrations to DB (uses SQLALCHEMY_DATABASE_URI from .env)
+python -m flask --app app:create_app db upgrade
+```
+
+Notes:
+- Models live in `app/models.py` and use `db.Model` (Flask-SQLAlchemy).
+- Alembic reads metadata from Flask-SQLAlchemy and the database URL from app config.
+- `.env` should include: `FLASK_APP=app:create_app`, `FLASK_ENV`, `DATABASE_URL` (Neon pooled) and optionally `DATABASE_URL_DIRECT`.
+
 ## CLI
 
 - rss:refresh — ingest feeds now

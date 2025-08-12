@@ -3,19 +3,26 @@ from __future__ import annotations
 import os
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import pool
 from alembic import context
 
-from app.models import Base
+from flask import current_app
+from app.db import db
 
 config = context.config
 
 fileConfig(config.config_file_name)
 
-target_metadata = Base.metadata
+# Use Flask-SQLAlchemy metadata
+target_metadata = db.metadata
 
 
 def get_url() -> str:
+    # Prefer Flask app config set via Flask-SQLAlchemy
+    url = current_app.config.get("SQLALCHEMY_DATABASE_URI")
+    if url:
+        return url
+    # Fallback to envs
     url = os.getenv("DATABASE_URL_DIRECT") or os.getenv("DATABASE_URL")
     if url:
         s = url.strip()
@@ -45,12 +52,7 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     configuration = config.get_section(config.config_ini_section) or {}
     configuration["sqlalchemy.url"] = get_url()
-    connectable = engine_from_config(
-        configuration,
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-        future=True,
-    )
+    connectable = db.engine
 
     with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)

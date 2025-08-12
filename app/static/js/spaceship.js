@@ -272,10 +272,14 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Parallax effect for all floating blocks
     function addParallaxEffects() {
+        // Disable parallax on News Feed page where it is distracting
+        if (window.location && window.location.pathname && window.location.pathname.startsWith('/news')) {
+            return;
+        }
         const hero = document.querySelector('.hero');
         const sections = document.querySelectorAll('.section');
         
-        window.addEventListener('scroll', () => {
+        const onScroll = () => {
             const scrolled = window.pageYOffset;
             const viewportHeight = window.innerHeight;
             
@@ -297,6 +301,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             
+            // If near the very top, fully reset all sections
+            if (scrolled <= 10) {
+                sections.forEach((section) => {
+                    section.style.transform = 'translate(0px, 0px) translateZ(0)';
+                    section.style.opacity = '1';
+                });
+                return;
+            }
+
             // Section parallax with directional movement
             sections.forEach((section, index) => {
                 const rect = section.getBoundingClientRect();
@@ -328,13 +341,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Calculate opacity for fading effect
                     const fadeDistance = Math.abs(normalizedDistance);
-                    const opacity = Math.max(0.3, 1 - fadeDistance * 0.5);
+                    const opacity = Math.max(0.7, 1 - fadeDistance * 0.5); // raise min opacity to avoid dim look when returning
                     
                     section.style.transform = `translate(${xOffset}px, ${yOffset}px) translateZ(0)`;
                     section.style.opacity = opacity;
                 }
             });
-        });
+        };
+        window.addEventListener('scroll', onScroll);
+        // Run once to ensure correct initial state
+        onScroll();
     }
     
     // Add parallax effects

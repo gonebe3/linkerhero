@@ -1,0 +1,19 @@
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/gen/routes.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/news/routes.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/news/rss.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/static/js/spaceship.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/templates/base_spaceship.html', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/templates/news_board_spaceship.html', LF will be replaced by CRLF the next time Git touches it
+README.md
+app/__init__.py
+app/db.py
+app/gen/routes.py
+app/models.py
+app/news/routes.py
+app/news/rss.py
+app/static/js/spaceship.js
+app/templates/base_spaceship.html
+app/templates/news_board_spaceship.html
+migrations/env.py
+requirements.txt

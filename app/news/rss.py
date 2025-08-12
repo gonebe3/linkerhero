@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 import feedparser
 import httpx
 from sqlalchemy import select
 
 from ..db import db_session
-from ..models import Article
+from ..models import Article, Category, ArticleCategory
 
 FEEDS = [
     "https://news.ycombinator.com/rss",
@@ -71,15 +71,20 @@ def refresh_feeds() -> None:
                     t, s = _extract_summary_fallback(link)
                 else:
                     t, s = title, summary
+                img = _extract_image_url(entry)
                 article = Article(
                     source=feed_url,
                     url=link,
                     title=t[:1000],
                     summary=s,
                     topics=_keywords(t, s),
+                    image_url=img,
                     published_at=published_at,
                 )
                 session_db.add(article)
+                session_db.flush()
+                # categorize article heuristically
+                _assign_categories(session_db, article)
 
 
 async def extract_url(url: str) -> dict[str, Any]:
@@ -92,4 +97,64 @@ async def extract_url(url: str) -> dict[str, Any]:
             return {"title": title, "summary": summary}
     title, summary = _extract_summary_fallback(url)
     return {"title": title, "summary": summary}
+
+
+def _extract_image_url(entry: Any) -> Optional[str]:
+    # Common RSS fields used by feedparser
+    # media_content / media_thumbnail
+    try:
+        if hasattr(entry, 'media_content'):
+            media = entry.media_content
+            if isinstance(media, list) and media:
+                url = media[0].get('url')
+                if url:
+                    return url
+        if hasattr(entry, 'media_thumbnail'):
+            thumbs = entry.media_thumbnail
+            if isinstance(thumbs, list) and thumbs:
+                url = thumbs[0].get('url')
+                if url:
+                    return url
+        # enclosures
+        for link in entry.get('links', []) or []:
+            if link.get('rel') == 'enclosure' and link.get('type', '').startswith('image/'):
+                return link.get('href')
+        # image field sometimes exists
+        img = entry.get('image')
+        if isinstance(img, dict):
+            if img.get('href'):
+                return img.get('href')
+            if img.get('url'):
+                return img.get('url')
+    except Exception:
+        pass
+    return None
+
+
+CATEGORY_KEYWORDS: dict[str, list[str]] = {
+    "ai": ["ai", "artificial", "machine", "ml", "model", "llm", "neural", "gpt", "claude"],
+    "startups": ["startup", "seed", "series", "vc", "founder", "funding"],
+    "technology": ["tech", "software", "hardware", "cloud", "saas", "dev", "api"],
+    "business": ["business", "revenue", "profit", "market", "strategy", "sales", "marketing"],
+    "research": ["paper", "research", "study", "benchmark", "arxiv"],
+}
+
+
+def _assign_categories(session_db, article: Article) -> None:
+    text = f"{article.title} {article.summary}".lower()
+    matched_slugs: list[str] = []
+    for slug, kws in CATEGORY_KEYWORDS.items():
+        if any(k in text for k in kws):
+            matched_slugs.append(slug)
+    if not matched_slugs:
+        return
+    # ensure Category rows exist
+    existing: dict[str, Category] = {c.slug: c for c in session_db.execute(select(Category)).scalars().all()}
+    for slug in matched_slugs:
+        if slug not in existing:
+            c = Category(name=slug.capitalize(), slug=slug)
+            session_db.add(c)
+            session_db.flush()
+            existing[slug] = c
+        session_db.add(ArticleCategory(article_id=article.id, category_id=existing[slug].id))
 

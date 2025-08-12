@@ -6,7 +6,6 @@ from sqlalchemy import select
 from ..db import db_session
 from ..models import Article, Generation, User
 from .llm_router import get_provider
-from .scoring import score_text
 
 bp = Blueprint("gen", __name__, url_prefix="")
 
@@ -62,23 +61,18 @@ def api_generate():
         keywords=keywords,
     )
 
-    scored = []
-    for v in variants:
-        s, breakdown = score_text(v, today_keywords=(selected_article.topics if selected_article else {}))
-        scored.append((v, s, breakdown))
+    results = [(v, None, None) for v in variants]
 
     with db_session() as s:
-        for v, sscore, breakdown in scored:
+        for v, sscore, breakdown in results:
             g = Generation(
                 user_id=user_id,
                 article_id=(selected_article.id if selected_article else None),
                 model=current_app.config.get("LLM_PROVIDER", "anthropic"),
                 prompt=f"persona={persona}, tone={tone}",
                 draft_text=v,
-                score=sscore,
-                score_breakdown=breakdown,
             )
             s.add(g)
 
-    return render_template("gen_results_spaceship.html", variants=scored)
+    return render_template("gen_results_spaceship.html", variants=results)
 
