@@ -2,46 +2,16 @@
   <div class="section">
     <div class="text-center mb-6">
       <h2 style="font-size: 2rem; font-weight: 800; color: white;">🎉 Your AI-Generated Posts</h2>
-      <p style="color: rgba(255, 255, 255, 0.8);">Here are 3 optimized LinkedIn posts with detailed scoring</p>
+      <p style="color: rgba(255, 255, 255, 0.8);">Here are 3 LinkedIn-style drafts</p>
     </div>
     
-    {% for v, s, b in variants %}
+    {% for v in variants %}
     <div class="card" style="margin-bottom: 3rem;">
       <div class="card-header">
         <h3 style="color: white; font-size: 1.3rem; font-weight: 700;">Draft {{ loop.index }}</h3>
-        <div class="score {% if s >= 80 %}score-high{% elif s >= 60 %}score-medium{% else %}score-low{% endif %}">
-          Score: {{ s }}/100
-        </div>
       </div>
       
       <div class="generated-content">{{ v }}</div>
-      
-      <div class="score-breakdown">
-        <div class="score-item">
-          <div class="score-item-label">Hook Quality</div>
-          <div class="score-item-value">{{ b.hook }}</div>
-        </div>
-        <div class="score-item">
-          <div class="score-item-label">Structure</div>
-          <div class="score-item-value">{{ b.structure }}</div>
-        </div>
-        <div class="score-item">
-          <div class="score-item-label">Emotion</div>
-          <div class="score-item-value">{{ b.emotion }}</div>
-        </div>
-        <div class="score-item">
-          <div class="score-item-label">Call to Action</div>
-          <div class="score-item-value">{{ b.cta }}</div>
-        </div>
-        <div class="score-item">
-          <div class="score-item-label">Topicality</div>
-          <div class="score-item-value">{{ b.topicality }}</div>
-        </div>
-        <div class="score-item">
-          <div class="score-item-label">Readability</div>
-          <div class="score-item-value">{{ b.readability }}</div>
-        </div>
-      </div>
       
       <div class="text-center mt-4">
         <button class="btn btn-copy" onclick="copyToClipboard(this, `{{ v|replace('`', '\\`')|replace('\\', '\\\\')|replace('\n', '\\n') }}`)">

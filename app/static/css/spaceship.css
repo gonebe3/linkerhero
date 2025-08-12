@@ -814,7 +814,7 @@ body {
 .form-input, .form-select, .form-textarea {
   width: 100%;
   padding: 1.2rem;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.55);
   border: 2px solid rgba(255, 255, 255, 0.2);
   border-radius: 15px;
   color: white;
@@ -822,6 +822,61 @@ body {
   backdrop-filter: blur(10px);
   transition: all 0.3s ease;
 }
+
+/* Ensure dropdown lists are readable (dark background with light text) */
+.form-select option {
+  background: #0f0f12;
+  color: #ffffff;
+}
+.form-select:focus {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+/* Override select styling to be darker with rounded corners and 80% opacity */
+.form-select {
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 18px;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+.form-select option {
+  background: rgba(0, 0, 0, 0.9);
+}
+
+/* Custom dropdown (for rounded open menu) */
+.custom-select { position: relative; display: inline-block; width: 100%; }
+.custom-select__button {
+  width: 100%;
+  padding: 1.2rem;
+  background: rgba(0,0,0,0.8);
+  color: #fff;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 16px;
+  text-align: left;
+  cursor: pointer;
+}
+.custom-select__button:after {
+  content: '▾';
+  position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+  color: rgba(255,255,255,0.8);
+}
+.custom-select__menu {
+  position: absolute; left: 0; right: 0; top: calc(100% + 6px);
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 14px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+  max-height: 260px; overflow: auto; z-index: 50; display: none;
+}
+.custom-select__menu.open { display: block; }
+.custom-select__option {
+  padding: 12px 16px;
+  color: #fff; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.custom-select__option:last-child { border-bottom: none; }
+.custom-select__option:hover { background: rgba(255,255,255,0.08); }
 
 .form-input::placeholder,
 .form-select::placeholder,

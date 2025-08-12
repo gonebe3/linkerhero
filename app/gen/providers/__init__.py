@@ -13,6 +13,7 @@ class Provider(Protocol):
         n_variants: int = 3,
         max_tokens: int = 400,
         keywords: list[str] | None = None,
+        hook_type: str | None = None,
     ) -> list[str]:
         ...
 

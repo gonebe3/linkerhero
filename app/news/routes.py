@@ -56,8 +56,13 @@ def news_board():
         selected = request.args.get("categories", "").strip()
         selected_slugs = [s for s in selected.split(",") if s]
     with db_session() as s:
-        # base articles
-        stmt = select(Article).where(Article.deleted_at.is_(None)).order_by(Article.created_at.desc())
+        # base articles: only those with images
+        stmt = (
+            select(Article)
+            .where(Article.deleted_at.is_(None))
+            .where(Article.image_url.isnot(None))
+            .order_by(Article.created_at.desc())
+        )
         articles = s.execute(stmt).scalars().all()
         # categories for UI
         cats = s.execute(select(Category).order_by(Category.name.asc())).scalars().all()

@@ -62,3 +62,6 @@ class Config:
 
     APP_BASE_URL: str = os.getenv("APP_BASE_URL", "http://localhost:5000")
 
+    # Ensure templates update without full restart in dev
+    TEMPLATES_AUTO_RELOAD: bool = True
+

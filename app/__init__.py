@@ -76,6 +76,11 @@ def create_app() -> Flask:
     def db_history(verbose: bool) -> None:
         alembic_command.history(_alembic_cfg(), verbose=verbose)
 
+    @db_cli.command('stamp')
+    @click.argument("revision", required=False, default="head")
+    def db_stamp(revision: str) -> None:
+        alembic_command.stamp(_alembic_cfg(), revision)
+
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(news_bp)
@@ -114,6 +119,20 @@ def create_app() -> Flask:
     def rss_refresh() -> None:
         refresh_feeds()
         print("ingested")
+
+    @app.cli.command("rss:purge_no_image")
+    def rss_purge_no_image() -> None:
+        from .models import Article
+        from sqlalchemy import select
+        removed = 0
+        with db.session.begin():
+            rows = db.session.execute(
+                select(Article).where(Article.deleted_at.is_(None)).where(Article.image_url.is_(None))
+            ).scalars().all()
+            for a in rows:
+                a.deleted_at = datetime.now(timezone.utc)
+                removed += 1
+        print(f"soft-deleted {removed} articles without image")
 
     from .auth.routes import ensure_admin
     import click

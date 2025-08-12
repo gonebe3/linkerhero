@@ -20,15 +20,17 @@ class AnthropicProvider:
         n_variants: int = 3,
         max_tokens: int = 400,
         keywords: list[str] | None = None,
+        hook_type: str | None = None,
     ) -> List[str]:
         if not self.client:
             base = source_text.split("\n")[0][:140]
             return [f"{persona} {tone}: {base} #draft" for _ in range(n_variants)]
 
+        hook_clause = f" Hook style: {hook_type}." if hook_type and hook_type != "auto" else ""
         system = (
-            "You create concise LinkedIn posts. Start with a hook. 2-4 short paragraphs. "
+            "You create concise LinkedIn posts. Start with a strong hook. 2-4 short paragraphs. "
             f"Persona: {persona}. Tone: {tone}. Include keywords: {', '.join(keywords or [])}. "
-            "Keep paragraphs under 60 words."
+            "Keep paragraphs under 60 words." + hook_clause
         )
         prompt = f"Summarize and craft {n_variants} LinkedIn-style post variants from: \n{source_text[:2000]}"
         resp = self.client.messages.create(

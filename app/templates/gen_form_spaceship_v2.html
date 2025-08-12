@@ -4,9 +4,9 @@
   <div class="section">
     <div class="text-center mb-6">
       <h1 style="font-size: 2.5rem; font-weight: 800; margin-bottom: 1rem; color: white;">Generate LinkedIn Drafts</h1>
-      <p style="font-size: 1.2rem; color: rgba(255, 255, 255, 0.8);">Transform any content into viral LinkedIn posts with AI-powered scoring</p>
+      <p style="font-size: 1.2rem; color: rgba(255, 255, 255, 0.8);">Turn a URL or your text into 3 LinkedIn-style drafts.</p>
     </div>
-    
+
     <div class="card">
       <form id="gen-form" hx-post="/api/generate" hx-target="#results" hx-swap="innerHTML" hx-indicator="#loading" autocomplete="off">
         <div class="form-group">
@@ -15,13 +15,11 @@
           <p style="font-size: 0.9rem; color: rgba(255, 255, 255, 0.6); margin-top: 0.5rem;">Enter a URL, or leave empty to paste your own text below.</p>
         </div>
 
-        
-        
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">👤 Your Persona</label>
             <div class="custom-select" data-select-name="persona">
-              <button type="button" class="custom-select__button" data-value="PM">Product Manager</button>
+              <button type="button" class="custom-select__button" data-value="{{ form.persona.data or 'PM' }}">{{ {'PM':'Product Manager','Consultant':'Consultant','Engineer':'Engineer','Founder':'Founder','Marketer':'Marketer','Sales':'Sales'}[form.persona.data or 'PM'] }}</button>
               <div class="custom-select__menu">
                 <div class="custom-select__option" data-value="PM">Product Manager</div>
                 <div class="custom-select__option" data-value="Consultant">Consultant</div>
@@ -36,7 +34,7 @@
           <div class="form-group">
             <label class="form-label">🎭 Tone of Voice</label>
             <div class="custom-select" data-select-name="tone">
-              <button type="button" class="custom-select__button" data-value="analytical">Analytical</button>
+              <button type="button" class="custom-select__button" data-value="{{ form.tone.data or 'analytical' }}">{{ {'analytical':'Analytical','bold':'Bold','conversational':'Conversational','storytelling':'Storytelling','data-driven':'Data-driven'}[form.tone.data or 'analytical'] }}</button>
               <div class="custom-select__menu">
                 <div class="custom-select__option" data-value="analytical">Analytical</div>
                 <div class="custom-select__option" data-value="bold">Bold</div>
@@ -55,7 +53,7 @@
               <span title="The opening style of the post; choose the kind of hook you want (e.g., question or contrarian)." style="cursor: help; color: rgba(255,255,255,0.8);">ℹ️</span>
             </label>
             <div class="custom-select" data-select-name="hook_type">
-              <button type="button" class="custom-select__button" data-value="auto">Auto</button>
+              <button type="button" class="custom-select__button" data-value="{{ form.hook_type.data or 'auto' }}">{{ {'auto':'Auto','question':'Question','contrarian':'Contrarian','numbered':'Numbered','how_to':'How-to','story':'Short Story'}[form.hook_type.data or 'auto'] }}</button>
               <div class="custom-select__menu">
                 <div class="custom-select__option" data-value="auto">Auto</div>
                 <div class="custom-select__option" data-value="question">Question</div>
@@ -68,14 +66,9 @@
             </div>
           </div>
           <div class="form-group">
-            <label class="form-label">✍️ Or Write/Paste Your Own Text</label>
-            <textarea name="text" rows="6" class="form-textarea" placeholder="Paste or write your source content here... (optional)">{{ form.text.data or '' }}</textarea>
-            <p style="font-size: 0.9rem; color: rgba(255, 255, 255, 0.6); margin-top: 0.5rem;">Provide either a URL or your text (not both).</p>
-          </div>
-          <div class="form-group">
             <label class="form-label">🧠 Model</label>
             <div class="custom-select" data-select-name="model">
-              <button type="button" class="custom-select__button" data-value="claude">Claude 3.5 Sonnet</button>
+              <button type="button" class="custom-select__button" data-value="{{ form.model.data or 'claude' }}">{{ {'claude':'Claude 3.5 Sonnet','gpt-5':'ChatGPT 5'}[form.model.data or 'claude'] }}</button>
               <div class="custom-select__menu">
                 <div class="custom-select__option" data-value="claude">Claude 3.5 Sonnet</div>
                 <div class="custom-select__option" data-value="gpt-5">ChatGPT 5</div>
@@ -84,7 +77,13 @@
             </div>
           </div>
         </div>
-        
+
+        <div class="form-group">
+          <label class="form-label">✍️ Or Write/Paste Your Own Text</label>
+          <textarea name="text" rows="6" class="form-textarea" placeholder="Paste or write your source content here... (optional)">{{ form.text.data or '' }}</textarea>
+          <p style="font-size: 0.9rem; color: rgba(255, 255, 255, 0.6); margin-top: 0.5rem;">Provide either a URL or your text (not both).</p>
+        </div>
+
         <div class="text-center mt-4">
           <button type="submit" class="btn btn-cta" style="font-size: 1.2rem; padding: 1.2rem 3rem;">
             ✨ Generate Posts
@@ -116,25 +115,17 @@
           textArea.addEventListener('input', enforceExclusive);
           enforceExclusive();
 
-          // Custom select behavior (rounded dropdowns)
           document.querySelectorAll('.custom-select').forEach(function(wrapper){
             const button = wrapper.querySelector('.custom-select__button');
             const menu = wrapper.querySelector('.custom-select__menu');
             const hidden = wrapper.querySelector('input[type="hidden"]');
-            function closeAll(ev){
-              if (!wrapper.contains(ev.target)) menu.classList.remove('open');
-            }
-            button.addEventListener('click', function(){
-              menu.classList.toggle('open');
-            });
+            function closeAll(ev){ if (!wrapper.contains(ev.target)) menu.classList.remove('open'); }
+            button.addEventListener('click', function(){ menu.classList.toggle('open'); });
             menu.querySelectorAll('.custom-select__option').forEach(function(opt){
               opt.addEventListener('click', function(){
                 const val = this.getAttribute('data-value');
                 const label = this.textContent.trim();
-                hidden.value = val;
-                button.textContent = label;
-                button.setAttribute('data-value', val);
-                menu.classList.remove('open');
+                hidden.value = val; button.textContent = label; button.setAttribute('data-value', val); menu.classList.remove('open');
               });
             });
             document.addEventListener('click', closeAll);
@@ -143,14 +134,16 @@
       </script>
     </div>
   </div>
-  
+
   <div id="loading" class="htmx-indicator" style="text-align: center; margin: 2rem 0;">
     <div class="card">
       <div class="spinner" style="margin: 2rem auto;"></div>
       <p style="color: white; font-size: 1.1rem;">🚀 AI is crafting your posts...</p>
     </div>
   </div>
-  
+
   <div id="results"></div>
 </div>
 {% endblock %}
+
+

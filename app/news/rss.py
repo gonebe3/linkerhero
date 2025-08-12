@@ -71,7 +71,10 @@ def refresh_feeds() -> None:
                     t, s = _extract_summary_fallback(link)
                 else:
                     t, s = title, summary
+                # Only ingest items that have an explicit image URL in RSS metadata
                 img = _extract_image_url(entry)
+                if not img:
+                    continue
                 article = Article(
                     source=feed_url,
                     url=link,
