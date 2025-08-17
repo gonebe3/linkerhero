@@ -14,6 +14,10 @@ def generate_uuid() -> str:
 
 class User(db.Model):
     __tablename__ = "users"
+    __table_args__ = (
+        # Ensure we never create duplicate OAuth identities
+        UniqueConstraint("oauth_provider", "oauth_sub", name="uq_user_oauth_identity"),
+    )
 
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
     email = db.Column(db.String(255), unique=True, index=True, nullable=False)
@@ -35,10 +39,18 @@ class User(db.Model):
     quota_gpt_monthly = db.Column(Integer, default=2, nullable=False)
     quota_claude_used = db.Column(Integer, default=0, nullable=False)
     quota_gpt_used = db.Column(Integer, default=0, nullable=False)
-    stripe_customer_id = db.Column(db.String(100), nullable=True, index=True)
+    stripe_customer_id = db.Column(db.String(100), nullable=True, unique=True, index=True)
     default_language = db.Column(db.String(10), nullable=True)
+    marketing_opt_in = db.Column(Boolean, default=False, nullable=False)
+    privacy_accepted_at = db.Column(DateTime(timezone=True), nullable=True)
 
     generations = db.relationship("Generation", back_populates="user")
+    sessions = db.relationship(
+        "Session",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
 
 class Article(db.Model):
@@ -113,15 +125,22 @@ class Generation(db.Model):
 
 class Session(db.Model):
     __tablename__ = "sessions"
+    __table_args__ = (
+        # Speed up lookups of recent sessions per user
+        db.Index("ix_sessions_user_created", "user_id", "created_at"),
+    )
 
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
-    user_id = db.Column(db.String(36), ForeignKey("users.id"), index=True, nullable=False)
+    user_id = db.Column(db.String(36), ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
     user_agent = db.Column(db.String(400), nullable=True)
     ip_address = db.Column(db.String(50), nullable=True)
     created_at = db.Column(DateTime(timezone=True), server_default=func.now(), index=True, nullable=False)
     last_seen_at = db.Column(DateTime(timezone=True), nullable=True, index=True)
     revoked_at = db.Column(DateTime(timezone=True), nullable=True)
     expires_at = db.Column(DateTime(timezone=True), nullable=True)
+
+    # ORM relationship
+    user = db.relationship("User", back_populates="sessions")
 
 
 class Subscription(db.Model):

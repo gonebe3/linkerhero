@@ -1,48 +1,54 @@
 {% extends 'base_spaceship.html' %}
 {% block content %}
 <div class="container" style="padding-top: 6rem;">
-  <div class="section">
-    <div class="text-center mb-6">
-      <h1 style="font-size: 2.5rem; font-weight: 800; margin-bottom: 1rem; color: white;">Generate LinkedIn Drafts</h1>
-      <p style="font-size: 1.2rem; color: rgba(255, 255, 255, 0.8);">Turn a URL or your text into 3 LinkedIn-style drafts.</p>
-    </div>
-
-    <div class="card">
-      <form id="gen-form" hx-post="/api/generate" hx-target="#results" hx-swap="innerHTML" hx-indicator="#loading" autocomplete="off">
-        <div class="form-group">
-          <label class="form-label">🔗 Article URL</label>
-          <input type="url" name="url" value="{{ prefill_url or form.url.data or '' }}" class="form-input" placeholder="https://example.com/article" />
-          <p style="font-size: 0.9rem; color: rgba(255, 255, 255, 0.6); margin-top: 0.5rem;">Enter a URL, or leave empty to paste your own text below.</p>
+      <div class="section">
+        <div class="text-center mb-6">
+          <h1 style="font-size: 2.5rem; font-weight: 800; margin-bottom: 1rem; color: white;">Generate LinkedIn Drafts</h1>
+          <p style="font-size: 1.2rem; color: rgba(255, 255, 255, 0.8);">Turn a URL, your text, or a file into LinkedIn‑style drafts.</p>
         </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">👤 Your Persona</label>
-            <div class="custom-select" data-select-name="persona">
-              <button type="button" class="custom-select__button" data-value="{{ form.persona.data or 'PM' }}">{{ {'PM':'Product Manager','Consultant':'Consultant','Engineer':'Engineer','Founder':'Founder','Marketer':'Marketer','Sales':'Sales'}[form.persona.data or 'PM'] }}</button>
-              <div class="custom-select__menu">
-                <div class="custom-select__option" data-value="PM">Product Manager</div>
-                <div class="custom-select__option" data-value="Consultant">Consultant</div>
-                <div class="custom-select__option" data-value="Engineer">Engineer</div>
-                <div class="custom-select__option" data-value="Founder">Founder</div>
-                <div class="custom-select__option" data-value="Marketer">Marketer</div>
-                <div class="custom-select__option" data-value="Sales">Sales</div>
-              </div>
-              <input type="hidden" name="persona" value="{{ form.persona.data or 'PM' }}" />
-            </div>
+        
+
+    <div class="card">
+      <form id="gen-form" action="/api/generate" method="post" hx-post="/api/generate" hx-target="#results" hx-swap="innerHTML" hx-indicator="#loading" autocomplete="off" enctype="multipart/form-data" hx-encoding="multipart/form-data">
+        {% set mode = (prefill_url and 'url') or 'text' %}
+        <input type="hidden" name="source_mode" id="source_mode" value="{{ mode }}" />
+
+        <div id="source-area">
+        <div class="form-group">
+          <div class="segmented" id="source-switch" role="tablist" aria-label="Source type">
+            <button type="button" class="segmented__btn" data-mode="text">Text</button>
+            <button type="button" class="segmented__btn" data-mode="url">URL</button>
+            <button type="button" class="segmented__btn" data-mode="file">File</button>
           </div>
-          <div class="form-group">
-            <label class="form-label">🎭 Tone of Voice</label>
-            <div class="custom-select" data-select-name="tone">
-              <button type="button" class="custom-select__button" data-value="{{ form.tone.data or 'analytical' }}">{{ {'analytical':'Analytical','bold':'Bold','conversational':'Conversational','storytelling':'Storytelling','data-driven':'Data-driven'}[form.tone.data or 'analytical'] }}</button>
-              <div class="custom-select__menu">
-                <div class="custom-select__option" data-value="analytical">Analytical</div>
-                <div class="custom-select__option" data-value="bold">Bold</div>
-                <div class="custom-select__option" data-value="conversational">Conversational</div>
-                <div class="custom-select__option" data-value="storytelling">Storytelling</div>
-                <div class="custom-select__option" data-value="data-driven">Data-driven</div>
+        </div>
+
+          <div class="form-group" id="block-url" style="display:none;">
+            <label class="form-label">🔗 Article URL</label>
+            <input type="url" name="url" value="{{ prefill_url or form.url.data or '' }}" class="form-input" placeholder="Insert article URL" />
+            <p style="font-size: 0.9rem; color: rgba(255, 255, 255, 0.6); margin-top: 0.5rem;">Paste a single public URL. We’ll fetch the content.</p>
+          </div>
+
+        
+
+          <div class="form-group" id="block-text" style="display:none;">
+            <label class="form-label">✍️ Write/Paste Text</label>
+            <textarea name="text" rows="6" class="form-textarea" placeholder="Insert your text here">{{ form.text.data or '' }}</textarea>
+            <p style="font-size: 0.9rem; color: rgba(255, 255, 255, 0.6); margin-top: 0.5rem;">Provide exactly one source: Text, URL, or File.</p>
+          </div>
+
+          <div class="form-group" id="block-file" style="display:none;">
+            <label class="form-label">📄 Upload File</label>
+            <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-label="Upload file by clicking or dragging">
+              <input type="file" name="file" id="file_input" hidden accept=".txt,.pdf,.docx" />
+              <div class="dropzone__content">
+                <div class="dropzone__icon">📄</div>
+                <div class="dropzone__text">
+                  <strong>Drag & drop a file</strong> or <span class="dropzone__link">click to choose</span>
+                  <div class="dropzone__hint">Up to 50 MB. Supported: .txt, .pdf, .docx</div>
+                </div>
               </div>
-              <input type="hidden" name="tone" value="{{ form.tone.data or 'analytical' }}" />
+              <div class="dropzone__preview" id="file_preview" style="display:none;"></div>
             </div>
           </div>
         </div>
@@ -78,10 +84,36 @@
           </div>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">✍️ Or Write/Paste Your Own Text</label>
-          <textarea name="text" rows="6" class="form-textarea" placeholder="Paste or write your source content here... (optional)">{{ form.text.data or '' }}</textarea>
-          <p style="font-size: 0.9rem; color: rgba(255, 255, 255, 0.6); margin-top: 0.5rem;">Provide either a URL or your text (not both).</p>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">👤 Your Persona</label>
+            <div class="custom-select" data-select-name="persona">
+              <button type="button" class="custom-select__button" data-value="{{ form.persona.data or 'PM' }}">{{ {'PM':'Product Manager','Consultant':'Consultant','Engineer':'Engineer','Founder':'Founder','Marketer':'Marketer','Sales':'Sales'}[form.persona.data or 'PM'] }}</button>
+              <div class="custom-select__menu">
+                <div class="custom-select__option" data-value="PM">Product Manager</div>
+                <div class="custom-select__option" data-value="Consultant">Consultant</div>
+                <div class="custom-select__option" data-value="Engineer">Engineer</div>
+                <div class="custom-select__option" data-value="Founder">Founder</div>
+                <div class="custom-select__option" data-value="Marketer">Marketer</div>
+                <div class="custom-select__option" data-value="Sales">Sales</div>
+              </div>
+              <input type="hidden" name="persona" value="{{ form.persona.data or 'PM' }}" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">🎭 Tone of Voice</label>
+            <div class="custom-select" data-select-name="tone">
+              <button type="button" class="custom-select__button" data-value="{{ form.tone.data or 'analytical' }}">{{ {'analytical':'Analytical','bold':'Bold','conversational':'Conversational','storytelling':'Storytelling','data-driven':'Data-driven'}[form.tone.data or 'analytical'] }}</button>
+              <div class="custom-select__menu">
+                <div class="custom-select__option" data-value="analytical">Analytical</div>
+                <div class="custom-select__option" data-value="bold">Bold</div>
+                <div class="custom-select__option" data-value="conversational">Conversational</div>
+                <div class="custom-select__option" data-value="storytelling">Storytelling</div>
+                <div class="custom-select__option" data-value="data-driven">Data-driven</div>
+              </div>
+              <input type="hidden" name="tone" value="{{ form.tone.data or 'analytical' }}" />
+            </div>
+          </div>
         </div>
 
         <div class="text-center mt-4">
@@ -90,30 +122,141 @@
           </button>
         </div>
       </form>
+      <!-- Client-side extractors -->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
       <script>
+        if (window.pdfjsLib && pdfjsLib.GlobalWorkerOptions) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.min.js';
+        }
         (function() {
           const form = document.getElementById('gen-form');
-          const urlInput = form.querySelector('input[name="url"]');
+          const blockUrl = document.getElementById('block-url');
+          const blockText = document.getElementById('block-text');
+          const blockFile = document.getElementById('block-file');
+          const seg = document.getElementById('source-switch');
+          const sourceMode = document.getElementById('source_mode');
+          const fileInput = document.getElementById('file_input');
+          const dropzone = document.getElementById('dropzone');
+          const filePreview = document.getElementById('file_preview');
           const textArea = form.querySelector('textarea[name="text"]');
-          function enforceExclusive() {
-            if (urlInput.value.trim()) {
-              textArea.disabled = true;
-              textArea.placeholder = 'Disabled because URL is provided';
-            } else {
-              textArea.disabled = false;
-              textArea.placeholder = 'Paste or write your source content here... (optional)';
-            }
-            if (textArea.value.trim()) {
-              urlInput.disabled = true;
-              urlInput.placeholder = 'Disabled because text is provided';
-            } else {
-              urlInput.disabled = false;
-              urlInput.placeholder = 'https://example.com/article';
-            }
+
+          function clearSources() {
+            const urlEl = form.querySelector('input[name="url"]');
+            const textEl = form.querySelector('textarea[name="text"]');
+            if (urlEl) { urlEl.value = ''; }
+            if (textEl) { textEl.value = ''; }
+            if (fileInput) { fileInput.value = ''; filePreview.style.display='none'; filePreview.textContent=''; }
           }
-          urlInput.addEventListener('input', enforceExclusive);
-          textArea.addEventListener('input', enforceExclusive);
-          enforceExclusive();
+
+          function setMode(mode){
+            const prev = sourceMode.value;
+            sourceMode.value = mode;
+            if (prev && prev !== mode) { clearSources(); }
+            blockUrl.style.display = mode === 'url' ? '' : 'none';
+            blockText.style.display = mode === 'text' ? '' : 'none';
+            blockFile.style.display = mode === 'file' ? '' : 'none';
+            const urlEl = form.querySelector('input[name="url"]');
+            const textEl = form.querySelector('textarea[name="text"]');
+            const fileEl = document.getElementById('file_input');
+            if (urlEl) urlEl.disabled = mode !== 'url';
+            if (textEl) textEl.disabled = mode !== 'text';
+            if (fileEl) fileEl.disabled = mode !== 'file';
+            seg.querySelectorAll('.segmented__btn').forEach(btn=>{
+              btn.classList.toggle('active', btn.getAttribute('data-mode')===mode);
+            });
+          }
+          seg.addEventListener('click', function(e){
+            const btn = e.target.closest('.segmented__btn');
+            if(!btn) return;
+            setMode(btn.getAttribute('data-mode'));
+          });
+          // Dropzone interactions
+          function openPicker(){ fileInput && fileInput.click(); }
+          function onFilesSelected(files){
+            if (!files || !files.length) return;
+            const f = files[0];
+            const max = 50 * 1024 * 1024;
+            if (f.size > max) {
+              alert('File is larger than 50 MB.');
+              fileInput.value = '';
+              return;
+            }
+            filePreview.textContent = 'Selected: ' + f.name + ' (' + Math.round(f.size/1024/1024*10)/10 + ' MB)';
+            filePreview.style.display = '';
+          }
+          if (dropzone) {
+            dropzone.addEventListener('click', function(){ setMode('file'); openPicker(); });
+            dropzone.addEventListener('keydown', function(e){ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); setMode('file'); openPicker(); }});
+            dropzone.addEventListener('dragover', function(e){ e.preventDefault(); dropzone.classList.add('dragover'); });
+            dropzone.addEventListener('dragleave', function(){ dropzone.classList.remove('dragover'); });
+            dropzone.addEventListener('drop', function(e){
+              e.preventDefault();
+              dropzone.classList.remove('dragover');
+              if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length){
+                setMode('file');
+                // Safely assign dropped file(s) to the input using DataTransfer API
+                try {
+                  const dt = new DataTransfer();
+                  dt.items.add(e.dataTransfer.files[0]);
+                  fileInput.files = dt.files;
+                } catch (_) {
+                  // Fallback: ignore assignment (some browsers may restrict); user can click to choose
+                }
+                onFilesSelected(e.dataTransfer.files);
+              }
+            });
+          }
+          async function extractFileToText(file){
+            const name = (file && file.name || '').toLowerCase();
+            const ext = name.split('.').pop();
+            const buf = await file.arrayBuffer();
+            try {
+              if (ext === 'txt') {
+                return new TextDecoder('utf-8',{fatal:false}).decode(new Uint8Array(buf));
+              }
+              if (ext === 'pdf') {
+                const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+                let out = '';
+                const maxPages = Math.min(pdf.numPages, 50);
+                for (let p=1; p<=maxPages; p++){
+                  const page = await pdf.getPage(p);
+                  const tc = await page.getTextContent();
+                  const line = tc.items.map(it => it.str).join(' ');
+                  out += (line + '\n');
+                  if (out.length > 9000) break;
+                }
+                return out;
+              }
+              if (ext === 'docx') {
+                const res = await mammoth.extractRawText({arrayBuffer: buf});
+                return res && res.value || '';
+              }
+            } catch(e){ return ''; }
+            return '';
+          }
+
+          if (fileInput) {
+            fileInput.addEventListener('change', async function(e){
+              try {
+                setMode('file'); onFilesSelected(e.target.files);
+                const f = e.target.files && e.target.files[0];
+                if (!f) return;
+                const text = (await extractFileToText(f) || '').trim();
+                if (text.length) {
+                  setMode('text');
+                  textArea.value = text.slice(0, 8000);
+                  fileInput.value = '';
+                  filePreview.textContent = 'Extracted ' + text.length + ' characters to Text.';
+                  filePreview.style.display = '';
+                }
+              } catch(_) { /* no-op, allow normal submit */ }
+            });
+          }
+
+          // Initialize default mode
+          setMode(sourceMode.value || 'text');
 
           document.querySelectorAll('.custom-select').forEach(function(wrapper){
             const button = wrapper.querySelector('.custom-select__button');

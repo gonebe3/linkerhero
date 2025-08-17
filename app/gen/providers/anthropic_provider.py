@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import List
+import re
 
 from flask import current_app
 from anthropic import Anthropic
@@ -21,6 +22,7 @@ class AnthropicProvider:
         max_tokens: int = 400,
         keywords: list[str] | None = None,
         hook_type: str | None = None,
+        language: str | None = None,
     ) -> List[str]:
         if not self.client:
             base = source_text.split("\n")[0][:140]
@@ -28,11 +30,24 @@ class AnthropicProvider:
 
         hook_clause = f" Hook style: {hook_type}." if hook_type and hook_type != "auto" else ""
         system = (
-            "You create concise LinkedIn posts. Start with a strong hook. 2-4 short paragraphs. "
+            "You write concise, topic-grounded LinkedIn posts. Start with a strong hook. 2–4 short paragraphs. "
             f"Persona: {persona}. Tone: {tone}. Include keywords: {', '.join(keywords or [])}. "
-            "Keep paragraphs under 60 words." + hook_clause
+            "Keep paragraphs under 60 words."
+            + hook_clause
+            + " Output only the post text. Do not include any prefaces like 'Here is' or headings."
+            + " Always write in the same language as the Source text (do not translate)."
+            + " CRITICAL: Base the post ONLY on the content in 'Source' below. Do NOT give generic LinkedIn tips or advice unless the Source is about LinkedIn itself."
         )
-        prompt = f"Summarize and craft {n_variants} LinkedIn-style post variants from: \n{source_text[:2000]}"
+        lang_clause = f" Write the post in {language}." if language else ""
+        prompt = (
+            f"Craft {n_variants} LinkedIn-style post(s) from the source below. "
+            "Start with a strong hook, then 2–4 short paragraphs (<=60 words each). "
+            "Conclude with a light CTA or reflection if appropriate. "
+            "Use concrete details from the Source (names, numbers, facts). If the Source is a list/table, synthesize the key points. "
+            "If the Source lacks enough content to write a post about the same topic, respond exactly with 'INSUFFICIENT_SOURCE'.\n\n"
+            f"Source:\n{source_text[:3000]}"
+            + lang_clause
+        )
         resp = self.client.messages.create(
             model="claude-3-5-sonnet-20240620",
             max_tokens=max_tokens,
@@ -40,6 +55,74 @@ class AnthropicProvider:
             messages=[{"role": "user", "content": prompt}],
         )
         text = "".join([c.text for c in resp.content if getattr(c, "text", None)])
-        variants = [v.strip("- \n") for v in text.split("\n\n") if v.strip()]
+        # Sanitize away generic prefaces
+        def _clean(s: str) -> str:
+            s = s.strip()
+            s = re.sub(r"^(here\s*(is|are|\'s)).*?:\s*\n?", "", s, flags=re.I)
+            return s.strip()
+
+        if n_variants == 1:
+            return [_clean(text)] if text.strip() else [""]
+
+        chunks = [v for v in text.split("\n\n") if v.strip()]
+        variants = [_clean(v.strip("- \n")) for v in chunks]
         return variants[:n_variants] if variants else [text.strip()][:n_variants]
+
+    # New: extract grounded facts as JSON list
+    def extract_facts(self, *, source_text: str, language: str | None = None, max_facts: int = 12) -> List[str]:
+        if not self.client:
+            # Fallback: naive sentence split
+            sentences = [s.strip() for s in re.split(r"[\.!?\n]+", source_text) if s.strip()]
+            return sentences[:max_facts]
+        system = (
+            "Extract key facts as short bullet points from the Source. "
+            "Do NOT invent new information. Return each fact as a single line. "
+            "Write in the same language as the Source."
+        )
+        prompt = f"Source:\n{source_text[:3000]}\n\nReturn up to {max_facts} facts, one per line."
+        resp = self.client.messages.create(
+            model="claude-3-5-sonnet-20240620",
+            max_tokens=600,
+            system=system,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = "".join([c.text for c in resp.content if getattr(c, "text", None)])
+        facts = [ln.strip("- • \t ") for ln in text.split("\n") if ln.strip()]
+        return [f for f in facts if len(f) > 3][:max_facts]
+
+    # New: write post from facts
+    def write_post_from_facts(
+        self,
+        *,
+        facts: List[str],
+        persona: str,
+        tone: str,
+        hook_type: str | None = None,
+        language: str | None = None,
+        max_tokens: int = 600,
+    ) -> str:
+        if not self.client:
+            base = " ".join(facts)[:400]
+            return f"{base}"
+        hook_clause = f" Hook style: {hook_type}." if hook_type and hook_type != "auto" else ""
+        system = (
+            "You write concise, topic-grounded LinkedIn posts. Start with a strong hook. 2–4 short paragraphs. "
+            f"Persona: {persona}. Tone: {tone}. Keep paragraphs under 60 words."
+            + hook_clause
+            + " Output only the post text. Do not include headings."
+            + " Always write in the language of the Facts."
+        )
+        facts_text = "\n- " + "\n- ".join(facts[:20])
+        prompt = (
+            "Using ONLY these facts, write a short LinkedIn-style post that clearly reflects them.\n"
+            f"Facts:{facts_text}"
+        )
+        resp = self.client.messages.create(
+            model="claude-3-5-sonnet-20240620",
+            max_tokens=max_tokens,
+            system=system,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = "".join([c.text for c in resp.content if getattr(c, "text", None)])
+        return text.strip()
 

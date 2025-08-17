@@ -1,0 +1,42 @@
+{% extends 'base_spaceship.html' %}
+{% block content %}
+<div class="container" style="padding-top:6rem;">
+  <div class="section" style="display:flex; gap:1rem; justify-content:space-between; align-items:center; flex-wrap:wrap;">
+    <h1 style="color:#fff; font-weight:800; margin:0;">Dashboard</h1>
+    <div style="display:flex; gap:0.75rem; align-items:center;">
+      <div class="card" style="padding:0.6rem 1rem; color:#fff; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12);">
+        Plan: <strong style="margin-left:0.3rem;">{{ user.plan|title }}</strong>
+      </div>
+      {% if user.plan == 'free' %}
+      <a href="/pricing" class="btn btn-cta" style="background:#ff9913; padding:0.6rem 1rem;">Upgrade to Personal</a>
+      {% endif %}
+      <div class="card" style="padding:0.6rem 1rem; color:#fff; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.35);">
+        Generations left: <strong>{{ left_total }}</strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="card" style="padding:1rem;">
+      <h3 style="color:#fff; margin-top:0;">Your Generations</h3>
+      {% if generations %}
+      <div class="list">
+        {% for g in generations %}
+        <details class="list-item" style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:0.75rem;">
+          <summary style="cursor:pointer; color:#fff; outline:none; list-style:none;">
+            <span style="opacity:.85;">{{ g.draft_text.split('\n')[0][:120] }}{% if g.draft_text|length > 120 %}...{% endif %}</span>
+            <span style="opacity:.5; margin-left:0.5rem;">• {{ g.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+          </summary>
+          <pre style="white-space:pre-wrap; color:#ddd; margin:0.75rem 0 0; font-family:inherit;">{{ g.draft_text }}</pre>
+        </details>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-center" style="color:#bbb;">No generations yet.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+

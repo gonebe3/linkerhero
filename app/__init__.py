@@ -14,6 +14,8 @@ from .gen.routes import bp as gen_bp
 def create_app() -> Flask:
     app = Flask(__name__, instance_relative_config=False)
     app.config.from_object(Config())
+    # Increase max upload size to 50 MB for file-based generation
+    app.config.setdefault("MAX_CONTENT_LENGTH", 50 * 1024 * 1024)
 
     # Initialize Flask-SQLAlchemy
     app.config.setdefault("SQLALCHEMY_TRACK_MODIFICATIONS", False)

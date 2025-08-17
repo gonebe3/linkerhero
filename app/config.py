@@ -65,3 +65,29 @@ class Config:
     # Ensure templates update without full restart in dev
     TEMPLATES_AUTO_RELOAD: bool = True
 
+    # OCR settings (server-side)
+    ENABLE_OCR: bool = os.getenv("ENABLE_OCR", "true").lower() in {"1", "true", "yes"}
+    # Optional explicit path to tesseract binary (e.g., C:\\Program Files\\Tesseract-OCR\\tesseract.exe)
+    TESSERACT_CMD: str | None = os.getenv("TESSERACT_CMD")
+    # Optional path to poppler bin directory for pdf2image on Windows
+    POPPLER_PATH: str | None = os.getenv("POPPLER_PATH")
+
+    # PDF Vision extraction tuning
+    PDF_VISION_MAX_PAGES: int = int(os.getenv("PDF_VISION_MAX_PAGES", "6"))
+    PDF_VISION_SCALE: float = float(os.getenv("PDF_VISION_SCALE", "1.5"))
+    PDF_VISION_TIMEOUT: float = float(os.getenv("PDF_VISION_TIMEOUT", "45.0"))
+    PDF_VISION_PAGES_PER_BATCH: int = int(os.getenv("PDF_VISION_PAGES_PER_BATCH", "4"))
+    PDF_VISION_MAX_WORKERS: int = int(os.getenv("PDF_VISION_MAX_WORKERS", "3"))
+
+    # EasyOCR settings (default path for PDFs)
+    PDF_EXTRACTOR: str = os.getenv("PDF_EXTRACTOR", "easyocr")  # easyocr | vision
+    EASYOCR_LANGS: str = os.getenv("EASYOCR_LANGS", "en,lt")
+    PDF_OCR_MAX_PAGES: int = int(os.getenv("PDF_OCR_MAX_PAGES", "15"))
+    PDF_OCR_RENDER_SCALE: float = float(os.getenv("PDF_OCR_RENDER_SCALE", "1.5"))
+    PDF_OCR_TIMEOUT_PER_PAGE: float = float(os.getenv("PDF_OCR_TIMEOUT_PER_PAGE", "8.0"))
+
+    # OAuth - LinkedIn
+    LINKEDIN_CLIENT_ID: str | None = os.getenv("LINKEDIN_CLIENT_ID")
+    LINKEDIN_CLIENT_SECRET: str | None = os.getenv("LINKEDIN_CLIENT_SECRET")
+    LINKEDIN_SCOPES: str = os.getenv("LINKEDIN_SCOPES", "openid profile email")
+

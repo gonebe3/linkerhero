@@ -17,6 +17,45 @@
           <label class="form-label">Password</label>
           <input type="password" name="password" class="form-input" placeholder="At least 8 chars, 1 uppercase, 1 special" required />
         </div>
+        <div id="register-extras" style="display:none;">
+          <div class="form-group">
+            <label class="form-label">Confirm Password</label>
+            <input type="password" name="confirm_password" class="form-input" placeholder="Repeat your password" />
+          </div>
+
+          <div class="form-group" style="margin-top:1rem;">
+            <label style="display:flex; align-items:center; gap:0.6rem; cursor:pointer; color:#fff;">
+              <input type="checkbox" name="privacy_ok" style="appearance:none; width:22px; height:22px; border:2px solid #fff; background:#000; display:inline-grid; place-content:center;">
+              <span>I agree to the <a href="/privacy" style="color:#ff9913; text-decoration:none;">Privacy Policy</a></span>
+            </label>
+          </div>
+          <div class="form-group" style="margin-top:0.5rem;">
+            <label style="display:flex; align-items:center; gap:0.6rem; cursor:pointer; color:#fff;">
+              <input type="checkbox" name="marketing_opt_in" style="appearance:none; width:22px; height:22px; border:2px solid #fff; background:#000; display:inline-grid; place-content:center;">
+              <span>I agree to receive news, updates, and promotions. <a href="/email-policy" style="color:#ff9913; text-decoration:none;">Learn more</a></span>
+            </label>
+          </div>
+        </div>
+
+        <script>
+          const emailInput = document.querySelector('input[name=email]');
+          const pwdInput = document.querySelector('input[name=password]');
+          const extras = document.getElementById('register-extras');
+          function showExtrasIfReady() {
+            const emailReady = emailInput && emailInput.value.length > 0 && emailInput.checkValidity();
+            const pwdReady = pwdInput && pwdInput.value.length > 0;
+            extras.style.display = (emailReady && pwdReady) ? 'block' : 'none';
+          }
+          emailInput.addEventListener('input', showExtrasIfReady);
+          pwdInput.addEventListener('input', showExtrasIfReady);
+          // draw white X when checked
+          document.addEventListener('change', (e) => {
+            if (e.target && e.target.matches('input[type=checkbox]')) {
+              e.target.style.background = e.target.checked ? 'linear-gradient(45deg, transparent 45%, #fff 45%, #fff 55%, transparent 55%), linear-gradient(-45deg, transparent 45%, #fff 45%, #fff 55%, transparent 55%)' : '#000';
+              e.target.style.backgroundSize = '100% 100%';
+            }
+          });
+        </script>
         <div class="text-center">
           <button type="submit" class="btn btn-cta" style="width:100%; padding:1rem;">Create Account</button>
         </div>
@@ -28,8 +67,8 @@
 
       <div class="text-center" style="margin: 1rem 0; color: rgba(255,255,255,.6);">or</div>
       <div style="display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:center;">
+        <a href="/login/linkedin" class="btn" style="background:rgba(255,255,255,.15);">Continue with LinkedIn</a>
         <a href="/oauth/google/start" class="btn" style="background:rgba(255,255,255,.15);">Continue with Google</a>
-        <a href="/oauth/linkedin/start" class="btn" style="background:rgba(255,255,255,.15);">Continue with LinkedIn</a>
       </div>
     </div>
 

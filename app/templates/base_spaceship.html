@@ -15,10 +15,16 @@
       <div class="nav-container">
         <a href="/" class="nav-brand">LinkerHero</a>
         <div class="nav-links">
+          {% if session.get('user_id') %}
+          <a href="/me/dashboard">Dashboard</a>
+          {% else %}
           <a href="/">Home</a>
+          {% endif %}
           <a href="/news">News Feed</a>
           <a href="/pricing">Pricing</a>
+          {% if session.get('user_id') %}
           <a href="/generate">Generate</a>
+          {% endif %}
           {% if session.get('user_id') %}
           <a href="/me/dashboard">Dashboard</a>
           <a href="/logout">Logout</a>

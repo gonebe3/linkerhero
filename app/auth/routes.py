@@ -12,6 +12,10 @@ from sqlalchemy import select, update
 from ..db import db_session
 from ..models import User, Session as UserSession
 from datetime import datetime, timedelta, timezone
+import json
+import httpx
+from urllib.parse import urlencode, quote_plus
+import secrets
 
 bp = Blueprint("auth", __name__, url_prefix="")
 def _register_form(request_form):
@@ -32,6 +36,10 @@ def _register_form(request_form):
                 Regexp(r".*[A-Z].*", message="At least one uppercase letter"),
                 Regexp(r".*[^A-Za-z0-9].*", message="At least one special character"),
             ],
+        )
+        confirm_password = PasswordField(
+            "Confirm Password",
+            validators=[DataRequired(), Length(min=8)],
         )
 
     return _Form(request_form)
@@ -60,6 +68,14 @@ def register():
     if request.method == "POST" and (is_valid() if is_valid else form.validate()):
         email = form.email.data.strip().lower()
         pwd = form.password.data
+        cpw = getattr(form, "confirm_password", None)
+        if cpw and getattr(cpw, "data", None) != pwd:
+            return render_template("auth_register_spaceship.html", error="Passwords do not match.")
+        # Checkboxes
+        marketing_opt_in = request.form.get("marketing_opt_in") == "on"
+        privacy_ok = request.form.get("privacy_ok") == "on"
+        if not privacy_ok:
+            return render_template("auth_register_spaceship.html", error="You must agree to the Privacy Policy.")
         with db_session() as session_db:
             existing = session_db.execute(select(User).where(User.email == email)).scalar_one_or_none()
             if existing:
@@ -68,6 +84,8 @@ def register():
                 email=email,
                 password_hash=generate_password_hash(pwd),
                 plan="free",
+                marketing_opt_in=marketing_opt_in,
+                privacy_accepted_at=datetime.now(timezone.utc),
             )
             session_db.add(user)
             session["user_id"] = user.id
@@ -119,7 +137,9 @@ def login():
         if not email:
             return render_template("auth_login_spaceship.html", sent=False, error="Email required")
         token = _serializer().dumps(email)
-        link = f"{current_app.config['APP_BASE_URL']}{url_for('auth.magic')}?token={token}"
+        # Preserve next param for smoother UX after magic link
+        next_url = request.args.get("next") or request.form.get("next") or url_for('main.index')
+        link = f"{current_app.config['APP_BASE_URL']}{url_for('auth.magic')}?token={token}&next={next_url}"
         _send_email(email, "Your LinkerHero login", f"Click to sign in: {link}")
         return render_template("auth_magic_spaceship.html")
     return render_template("auth_login_spaceship.html", sent=False)
@@ -128,6 +148,7 @@ def login():
 @bp.route("/magic")
 def magic():
     token = request.args.get("token")
+    next_url = request.args.get("next") or url_for('main.index')
     if not token:
         return redirect(url_for("main.index"))
     try:
@@ -144,8 +165,8 @@ def magic():
         ua = request.headers.get("User-Agent")
         ip = request.headers.get("X-Forwarded-For", request.remote_addr)
         now = datetime.now(timezone.utc)
-        s.add(UserSession(user_id=user.id, user_agent=ua, ip_address=ip, created_at=now, last_seen_at=now))
-    return redirect(url_for("main.index"))
+        session_db.add(UserSession(user_id=user.id, user_agent=ua, ip_address=ip, created_at=now, last_seen_at=now))
+    return redirect(next_url)
 
 
 @bp.route("/logout")
@@ -170,4 +191,124 @@ def login_password():
         now = datetime.now(timezone.utc)
         s.add(UserSession(user_id=user.id, user_agent=ua, ip_address=ip, created_at=now, last_seen_at=now))
     return redirect(url_for("main.index"))
+
+
+# --- LinkedIn OAuth (Authorization Code + PKCE not required for confidential apps) ---
+
+@bp.route("/login/linkedin")
+def login_linkedin_start():
+    client_id = current_app.config.get("LINKEDIN_CLIENT_ID")
+    if not client_id:
+        return redirect(url_for("auth.login"))
+    # Use the current host to avoid localhost/127.0.0.1 mismatches in dev
+    redirect_uri = url_for('auth.login_linkedin_callback', _external=True)
+    # Use OpenID Connect scopes per LinkedIn docs (openid, profile, email)
+    scopes = current_app.config.get("LINKEDIN_SCOPES", "openid profile email")
+    # CSRF protection state
+    state = secrets.token_urlsafe(16)
+    session['li_oauth_state'] = state
+    next_url = request.args.get('next') or request.args.get('return_to') or url_for('main.index')
+    session['li_oauth_next'] = next_url
+    params = {
+        "response_type": "code",
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "scope": scopes,
+        "state": state,
+    }
+    auth_url = "https://www.linkedin.com/oauth/v2/authorization?" + urlencode(params, quote_via=quote_plus)
+    return redirect(auth_url)
+
+
+# Backward-compatible alias for older template links
+@bp.route("/oauth/linkedin/start")
+def login_linkedin_start_alias():
+    return redirect(url_for("auth.login_linkedin_start"))
+
+
+@bp.route("/auth/linkedin/callback")
+def login_linkedin_callback():
+    code = request.args.get("code")
+    state = request.args.get("state")
+    if not state or state != session.get('li_oauth_state'):
+        return redirect(url_for("auth.login"))
+    if not code:
+        return redirect(url_for("auth.login"))
+    client_id = current_app.config.get("LINKEDIN_CLIENT_ID")
+    client_secret = current_app.config.get("LINKEDIN_CLIENT_SECRET")
+    redirect_uri = url_for('auth.login_linkedin_callback', _external=True)
+    if not client_id or not client_secret:
+        return redirect(url_for("auth.login"))
+
+    # Exchange code for access token
+    token_url = "https://www.linkedin.com/oauth/v2/accessToken"
+    try:
+        resp = httpx.post(
+            token_url,
+            data={
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": redirect_uri,
+                "client_id": client_id,
+                "client_secret": client_secret,
+            },
+            timeout=20.0,
+        )
+        resp.raise_for_status()
+        token_data = resp.json()
+    except Exception:
+        return redirect(url_for("auth.login"))
+
+    access_token = token_data.get("access_token")
+    if not access_token:
+        return redirect(url_for("auth.login"))
+
+    # Fetch profile using OIDC userinfo; fallback to classic email endpoint if needed
+    headers = {"Authorization": f"Bearer {access_token}"}
+    sub = None
+    email = ""
+    try:
+        prof = httpx.get("https://api.linkedin.com/v2/userinfo", headers=headers, timeout=20.0).json()
+        sub = prof.get("sub")
+        email = (prof.get("email") or "").lower().strip()
+    except Exception:
+        prof = {}
+    if not email:
+        try:
+            email_resp = httpx.get(
+                "https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))",
+                headers=headers,
+                timeout=20.0,
+            ).json()
+            email = (
+                (email_resp.get("elements") or [{}])[0]
+                .get("handle~", {})
+                .get("emailAddress", "")
+                .lower()
+                .strip()
+            )
+        except Exception:
+            email = ""
+
+    if not (email or sub):
+        return redirect(url_for("auth.login"))
+
+    with db_session() as sdb:
+        user = None
+        if email:
+            user = sdb.execute(select(User).where(User.email == email)).scalar_one_or_none()
+        if user is None and sub:
+            user = sdb.execute(
+                select(User).where(User.oauth_provider == "linkedin", User.oauth_sub == sub)
+            ).scalar_one_or_none()
+        if user is None:
+            user = User(email=email or f"li_{sub}@example.local", oauth_provider="linkedin", oauth_sub=sub, plan="free")
+            sdb.add(user)
+        session["user_id"] = user.id
+        ua = request.headers.get("User-Agent")
+        ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+        now = datetime.now(timezone.utc)
+        sdb.add(UserSession(user_id=user.id, user_agent=ua, ip_address=ip, created_at=now, last_seen_at=now))
+    next_url = session.pop('li_oauth_next', None) or url_for('main.index')
+    return redirect(next_url)
 

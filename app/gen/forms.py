@@ -3,11 +3,24 @@ from __future__ import annotations
 from flask_wtf import FlaskForm
 from wtforms import SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import Length, Optional, URL
+from flask_wtf.file import FileField, FileAllowed
 
 
 class GenerateForm(FlaskForm):
+    class Meta:
+        csrf = False  # Disable CSRF for this HTMX endpoint
     url = StringField("URL", validators=[Optional(), URL(require_tld=True, message="Enter a valid URL")])
     text = TextAreaField("Text", validators=[Optional(), Length(max=20000)])
+    file = FileField(
+        "File",
+        validators=[
+            Optional(),
+            FileAllowed(
+                ["txt", "pdf", "docx"],
+                "Unsupported file type. Allowed: txt, pdf, docx.",
+            ),
+        ],
+    )
 
     persona = SelectField(
         "Persona",
@@ -56,15 +69,8 @@ class GenerateForm(FlaskForm):
     submit = SubmitField("Generate")
 
     def validate(self, extra_validators=None) -> bool:  # type: ignore[override]
-        ok = super().validate(extra_validators=extra_validators)
-        if not ok:
-            return False
-        url_val = (self.url.data or "").strip()
-        text_val = (self.text.data or "").strip()
-        # exactly one of URL or text must be provided
-        if bool(url_val) == bool(text_val):
-            self.url.errors.append("Provide either a URL or your text (not both).")
-            return False
+        # We allow empty here and handle all validation in the route to avoid client/htmx edge cases.
+        super().validate(extra_validators=extra_validators)
         return True
 
 

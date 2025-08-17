@@ -1,5 +1,10 @@
 <div class="container">
   <div class="section">
+    {% if error %}
+    <div class="error" style="margin-bottom: 1rem;">
+      {{ error }}
+    </div>
+    {% endif %}
     <div class="text-center mb-6">
       <h2 style="font-size: 2rem; font-weight: 800; color: white;">✨ Your AI‑Crafted Draft</h2>
       <p style="color: rgba(255, 255, 255, 0.8);">A clear, compelling post designed to spark conversations. Polish, make it yours, and share with confidence.</p>
@@ -11,7 +16,7 @@
         <h3 style="color: white; font-size: 1.3rem; font-weight: 700;">Draft</h3>
       </div>
       
-      <div class="generated-content">{{ v }}</div>
+      <div class="generated-content">{{ v | replace('\n\n', '<br/><br/>') | replace('\n', '<br/>') | safe }}</div>
       
       <div class="text-center mt-4">
         <button class="btn btn-copy" onclick="copyToClipboard(this, `{{ v|replace('`', '\\`')|replace('\\', '\\\\')|replace('\n', '\\n') }}`)">

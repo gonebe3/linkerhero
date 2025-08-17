@@ -447,6 +447,11 @@ body {
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
 }
 
+/* Segmented control */
+.segmented { display:inline-flex; background: rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius: 999px; padding:4px; gap:4px; }
+.segmented__btn { background: transparent; color: rgba(255,255,255,0.85); border:none; padding:8px 14px; border-radius:999px; cursor:pointer; font-weight:600; }
+.segmented__btn.active { background: rgba(255,255,255,0.15); color: #fff; }
+
 /* Remove white fade overlay on buttons */
 .btn::before { display: none !important; }
 
@@ -1055,6 +1060,27 @@ body {
   border-radius: 15px;
   backdrop-filter: blur(10px);
 }
+
+/* Dropzone */
+.dropzone {
+  position: relative;
+  background: rgba(0, 0, 0, 0.55);
+  border: 2px dashed rgba(255, 255, 255, 0.25);
+  border-radius: 16px;
+  color: white;
+  padding: 24px;
+  transition: all 0.2s ease;
+}
+.dropzone:hover, .dropzone.dragover {
+  background: rgba(0, 0, 0, 0.65);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+.dropzone__content { display:flex; gap:16px; align-items:center; }
+.dropzone__icon { font-size: 28px; }
+.dropzone__text { font-size: 14px; color: rgba(255,255,255,0.85); }
+.dropzone__text .dropzone__link { text-decoration: underline; cursor: pointer; }
+.dropzone__hint { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 6px; }
+.dropzone__preview { margin-top: 10px; font-size: 13px; color: rgba(255,255,255,0.85); }
 
 /* Loading Animation */
 .loading {
