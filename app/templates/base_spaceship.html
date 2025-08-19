@@ -24,9 +24,6 @@
           <a href="/pricing">Pricing</a>
           {% if session.get('user_id') %}
           <a href="/generate">Generate</a>
-          {% endif %}
-          {% if session.get('user_id') %}
-          <a href="/me/dashboard">Dashboard</a>
           <a href="/logout">Logout</a>
           {% else %}
           <a href="/login">Login</a>
@@ -40,6 +37,8 @@
       {% block content %}{% endblock %}
     </main>
     
+    {% include 'partials/footer.html' %}
+
     <script src="{{ url_for('static', filename='js/spaceship.js') }}"></script>
   </body>
 </html>

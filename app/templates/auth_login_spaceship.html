@@ -24,26 +24,9 @@
       </form>
 
       <div class="text-center" style="margin: 1.5rem 0; color: rgba(255,255,255,.6);">or</div>
-
-      <!-- Magic link as option -->
-      <form method="post" action="/login">
-        <div class="form-group">
-          <label class="form-label">✉️ Email Address</label>
-          <input type="email" name="email" class="form-input" placeholder="you@example.com" required />
-          <p style="font-size: 0.9rem; color: rgba(255, 255, 255, 0.6); margin-top: 0.5rem;">We'll send you a secure magic link to sign in</p>
-        </div>
-        
-        <div class="text-center">
-          <button type="submit" class="btn btn-cta" style="width: 100%; font-size: 1.1rem; padding: 1rem;">
-            🔗 Send Magic Link
-          </button>
-        </div>
-      </form>
-
-      <div class="text-center" style="margin: 1rem 0; color: rgba(255,255,255,.6);">or</div>
-
       <div style="display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:center;">
         <a href="/login/linkedin" class="btn" style="background:rgba(255,255,255,.15);">Continue with LinkedIn</a>
+        <a href="/oauth/google/start" class="btn" style="background:rgba(255,255,255,.15);">Continue with Google</a>
       </div>
       
       {% if error %}

@@ -228,6 +228,7 @@ def api_generate():
     # Persist only if a user is logged in
     if user_id:
         with db_session() as s:
+            user = s.get(User, user_id)
             for v in results:
                 g = Generation(
                     user_id=user_id,
@@ -239,6 +240,12 @@ def api_generate():
                     tone=tone,
                 )
                 s.add(g)
+            # Increment quota usage counters based on selected provider
+            if user:
+                if model_choice in {"gpt", "gpt5", "openai", "chatgpt", "gpt-5"}:
+                    user.quota_gpt_used = (user.quota_gpt_used or 0) + len(results)
+                else:
+                    user.quota_claude_used = (user.quota_claude_used or 0) + len(results)
 
     return render_template("gen_results_spaceship.html", variants=results)
 

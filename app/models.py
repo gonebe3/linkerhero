@@ -21,6 +21,7 @@ class User(db.Model):
 
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
     email = db.Column(db.String(255), unique=True, index=True, nullable=False)
+    display_name = db.Column(db.String(120), nullable=True)
     password_hash = db.Column(db.String(255), nullable=True)
     email_verified_at = db.Column(DateTime(timezone=True), nullable=True)
     is_active = db.Column(Boolean, default=True, nullable=False)

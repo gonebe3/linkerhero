@@ -8,14 +8,14 @@
     </div>
 
     <div class="card">
-      <form method="post" action="/register">
+      <form method="post" action="/register" autocomplete="off">
         <div class="form-group">
           <label class="form-label">Email</label>
-          <input type="email" name="email" class="form-input" placeholder="you@example.com" required />
+          <input type="email" name="email" class="form-input" placeholder="you@example.com" autocomplete="off" required />
         </div>
         <div class="form-group">
           <label class="form-label">Password</label>
-          <input type="password" name="password" class="form-input" placeholder="At least 8 chars, 1 uppercase, 1 special" required />
+          <input type="password" name="password" class="form-input" placeholder="At least 8 chars, 1 uppercase, 1 special" autocomplete="new-password" required />
         </div>
         <div id="register-extras" style="display:none;">
           <div class="form-group">
@@ -41,11 +41,16 @@
           const emailInput = document.querySelector('input[name=email]');
           const pwdInput = document.querySelector('input[name=password]');
           const extras = document.getElementById('register-extras');
+          let userTyped = false;
           function showExtrasIfReady() {
             const emailReady = emailInput && emailInput.value.length > 0 && emailInput.checkValidity();
             const pwdReady = pwdInput && pwdInput.value.length > 0;
-            extras.style.display = (emailReady && pwdReady) ? 'block' : 'none';
+            // Only reveal extras after the user actually types, to avoid Chrome autofill-on-first-click UX glitches
+            extras.style.display = (userTyped && emailReady && pwdReady) ? 'block' : 'none';
           }
+          const markTyped = () => { userTyped = true; };
+          emailInput.addEventListener('keydown', markTyped);
+          pwdInput.addEventListener('keydown', markTyped);
           emailInput.addEventListener('input', showExtrasIfReady);
           pwdInput.addEventListener('input', showExtrasIfReady);
           // draw white X when checked
@@ -67,8 +72,8 @@
 
       <div class="text-center" style="margin: 1rem 0; color: rgba(255,255,255,.6);">or</div>
       <div style="display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:center;">
-        <a href="/login/linkedin" class="btn" style="background:rgba(255,255,255,.15);">Continue with LinkedIn</a>
-        <a href="/oauth/google/start" class="btn" style="background:rgba(255,255,255,.15);">Continue with Google</a>
+        <a href="/login/linkedin" class="btn" style="background:rgba(255,255,255,.15);" onclick="event.stopPropagation();">Continue with LinkedIn</a>
+        <a href="/oauth/google/start" class="btn" style="background:rgba(255,255,255,.15);" onclick="event.stopPropagation();">Continue with Google</a>
       </div>
     </div>
 

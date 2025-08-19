@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any
 from dotenv import load_dotenv
 
 # Load .env file
@@ -43,6 +44,16 @@ class Config:
     
     SQLALCHEMY_DATABASE_URI: str = _db_runtime or "sqlite+pysqlite:///linkerhero.sqlite3"
     SQLALCHEMY_DATABASE_URI_DIRECT: str = _db_direct or _db_runtime or "sqlite+pysqlite:///linkerhero.sqlite3"
+    # Robust connection pooling for cloud Postgres (e.g., Neon) to avoid stale connections
+    SQLALCHEMY_ENGINE_OPTIONS: dict[str, Any] = field(
+        default_factory=lambda: {
+            "pool_pre_ping": True,
+            "pool_recycle": int(os.getenv("DB_POOL_RECYCLE", "300")),
+            "pool_size": int(os.getenv("DB_POOL_SIZE", "5")),
+            "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", "10")),
+            "pool_timeout": int(os.getenv("DB_POOL_TIMEOUT", "30")),
+        }
+    )
 
     SESSION_COOKIE_SECURE: bool = FLASK_ENV == "production"
     SESSION_COOKIE_HTTPONLY: bool = True
@@ -90,4 +101,9 @@ class Config:
     LINKEDIN_CLIENT_ID: str | None = os.getenv("LINKEDIN_CLIENT_ID")
     LINKEDIN_CLIENT_SECRET: str | None = os.getenv("LINKEDIN_CLIENT_SECRET")
     LINKEDIN_SCOPES: str = os.getenv("LINKEDIN_SCOPES", "openid profile email")
+
+    # OAuth - Google
+    GOOGLE_CLIENT_ID: str | None = os.getenv("GOOGLE_CLIENT_ID")
+    GOOGLE_CLIENT_SECRET: str | None = os.getenv("GOOGLE_CLIENT_SECRET")
+    GOOGLE_SCOPES: str = os.getenv("GOOGLE_SCOPES", "openid email profile")
 

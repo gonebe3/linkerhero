@@ -1,24 +1,33 @@
 {% extends 'base_spaceship.html' %}
 {% block content %}
 <div class="container" style="padding-top:6rem;">
-  <div class="section" style="display:flex; gap:1rem; justify-content:space-between; align-items:center; flex-wrap:wrap;">
-    <h1 style="color:#fff; font-weight:800; margin:0;">Dashboard</h1>
-    <div style="display:flex; gap:0.75rem; align-items:center;">
-      <div class="card" style="padding:0.6rem 1rem; color:#fff; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12);">
-        Plan: <strong style="margin-left:0.3rem;">{{ user.plan|title }}</strong>
+  <div class="section" style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap;">
+    <div style="flex:1 1 auto; min-width:260px;">
+      <p style="color:#fff; margin:0; font-size: 1.75rem; font-weight: 600;">Welcome back, {{ user_display_name(user) }}</p>
+    </div>
+    <div style="flex:0 0 auto; display:flex; gap:0.75rem; align-items:flex-start; flex-wrap:wrap;">
+      <div class="card" style="padding:0.8rem 1rem; color:#fff; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); min-width:240px;">
+        <div>Plan: <strong style="margin-left:0.3rem;">{{ user.plan|title }}</strong></div>
+        {% if user.plan == 'free' %}
+        <div style="margin-top:0.6rem;">
+          <a href="/pricing" class="btn btn-cta" style="background:#ff9913; padding:0.6rem 1rem; width:100%; display:inline-block; text-align:center;">Upgrade to Personal</a>
+        </div>
+        {% endif %}
       </div>
-      {% if user.plan == 'free' %}
-      <a href="/pricing" class="btn btn-cta" style="background:#ff9913; padding:0.6rem 1rem;">Upgrade to Personal</a>
+      <div class="card" style="display:inline-block; align-self:flex-start; padding:0.4rem 0.75rem; color:#fff; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.35); width:auto;">
+        <span style="opacity:0.85;">Generations left:</span> <strong>{{ left_total }}</strong>
+      </div>
+      {% if user and user.plan_renews_at %}
+      <div class="card" style="display:inline-block; align-self:flex-start; padding:0.4rem 0.75rem; color:#fff; background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.35); width:auto;">
+        <span style="opacity:0.85;">Renews on:</span> <strong>{{ user.plan_renews_at.strftime('%Y-%m-%d') }}</strong>
+      </div>
       {% endif %}
-      <div class="card" style="padding:0.6rem 1rem; color:#fff; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.35);">
-        Generations left: <strong>{{ left_total }}</strong>
-      </div>
     </div>
   </div>
 
   <div class="section">
     <div class="card" style="padding:1rem;">
-      <h3 style="color:#fff; margin-top:0;">Your Generations</h3>
+      <h3 style="color:#fff; margin-top:0;">Your Generations{% if generations_count is not none %} ({{ generations_count }}){% endif %}</h3>
       {% if generations %}
       <div class="list">
         {% for g in generations %}
@@ -27,7 +36,13 @@
             <span style="opacity:.85;">{{ g.draft_text.split('\n')[0][:120] }}{% if g.draft_text|length > 120 %}...{% endif %}</span>
             <span style="opacity:.5; margin-left:0.5rem;">• {{ g.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
           </summary>
-          <pre style="white-space:pre-wrap; color:#ddd; margin:0.75rem 0 0; font-family:inherit;">{{ g.draft_text }}</pre>
+          <pre style="white-space:pre-wrap; color:#ddd; margin:0.5rem 0; font-family:inherit;">{{ g.draft_text }}</pre>
+          <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-top:0.25rem;">
+            <button class="btn" onclick="navigator.clipboard.writeText(this.parentElement.previousElementSibling.textContent).then(()=>showNotification('Copied to clipboard'))">Copy</button>
+            <form method="post" action="/me/generations/{{ g.id }}/delete" onsubmit="return confirm('Delete this generation?')">
+              <button type="submit" class="btn" style="background:rgba(239,68,68,0.25); border:1px solid rgba(239,68,68,0.5);">Delete</button>
+            </form>
+          </div>
         </details>
         {% endfor %}
       </div>

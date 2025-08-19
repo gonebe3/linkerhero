@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from flask import Flask
+import re
 from .config import Config
 from .db import db, db_session
 from sqlalchemy import text
@@ -105,9 +106,32 @@ def create_app() -> Flask:
             user = s.get(User, uid)
             if user:
                 user.last_seen_at = now
+                # Auto-renew monthly quotas if past renewal date
+                try:
+                    from .utils import next_month
+                    if user.plan_renews_at and now >= user.plan_renews_at:
+                        user.quota_gpt_used = 0
+                        user.quota_claude_used = 0
+                        user.plan_renews_at = next_month(now)
+                except Exception:
+                    pass
     @app.context_processor
     def inject_globals():
-        return {"app_name": "LinkerHero", "version": "0.1.0"}
+        def user_display_name(user: object | None) -> str:
+            try:
+                if not user:
+                    return "there"
+                dn = getattr(user, "display_name", None)
+                if dn:
+                    return str(dn).strip()
+                # Prefer email local-part; split common separators, pick first token
+                email = getattr(user, "email", None) or ""
+                local = email.split("@")[0]
+                token = re.split(r"[._-]+", local)[0]
+                return token.capitalize() if token else "there"
+            except Exception:
+                return "there"
+        return {"app_name": "LinkerHero", "version": "0.1.0", "user_display_name": user_display_name}
 
     @app.cli.command("db:ping")
     def db_ping() -> None:
