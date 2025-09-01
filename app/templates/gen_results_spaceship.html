@@ -10,6 +10,27 @@
       <p style="color: rgba(255, 255, 255, 0.8);">A clear, compelling post designed to spark conversations. Polish, make it yours, and share with confidence.</p>
     </div>
     
+    {% set rows = gen_rows if gen_rows is defined else [] %}
+    {% if rows and rows|length > 0 %}
+    {% for row in rows %}
+    {% set gid = row[0] %}
+    {% set v = row[1] %}
+    <div class="card" style="margin-bottom: 1.5rem;">
+      <div class="card-header">
+        <h3 style="color: white; font-size: 1.3rem; font-weight: 700;">Draft</h3>
+      </div>
+      
+      <div class="generated-content">{{ v | replace('\n\n', '<br/><br/>') | replace('\n', '<br/>') | safe }}</div>
+      
+      <div class="text-center mt-3" style="display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
+        <button class="btn btn-copy" onclick="copyToClipboard(this, `{{ v|replace('`', '\\`')|replace('\\', '\\\\')|replace('\n', '\\n') }}`)">📋 Copy to Clipboard</button>
+        {% if gid %}
+        <a class="btn" href="https://www.linkedin.com/sharing/share-offsite/?url={{ absolute_url('share/preview/' ~ gid) }}" target="_blank" rel="noopener">Share on LinkedIn</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
     {% for v in variants %}
     <div class="card" style="margin-bottom: 1.5rem;">
       <div class="card-header">
@@ -19,12 +40,11 @@
       <div class="generated-content">{{ v | replace('\n\n', '<br/><br/>') | replace('\n', '<br/>') | safe }}</div>
       
       <div class="text-center mt-3">
-        <button class="btn btn-copy" onclick="copyToClipboard(this, `{{ v|replace('`', '\\`')|replace('\\', '\\\\')|replace('\n', '\\n') }}`)">
-          📋 Copy to Clipboard
-        </button>
+        <button class="btn btn-copy" onclick="copyToClipboard(this, `{{ v|replace('`', '\\`')|replace('\\', '\\\\')|replace('\n', '\\n') }}`)">📋 Copy to Clipboard</button>
       </div>
     </div>
     {% endfor %}
+    {% endif %}
     
     <div class="text-center">
       <a href="/generate" class="btn btn-secondary">🔄 Generate More Posts</a>

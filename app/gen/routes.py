@@ -226,6 +226,7 @@ def api_generate():
     results = variants
 
     # Persist only if a user is logged in
+    gen_rows: list[tuple[str, str]] = []
     if user_id:
         with db_session() as s:
             user = s.get(User, user_id)
@@ -240,6 +241,8 @@ def api_generate():
                     tone=tone,
                 )
                 s.add(g)
+                s.flush()
+                gen_rows.append((g.id, v))
             # Increment quota usage counters based on selected provider
             if user:
                 if model_choice in {"gpt", "gpt5", "openai", "chatgpt", "gpt-5"}:
@@ -247,5 +250,9 @@ def api_generate():
                 else:
                     user.quota_claude_used = (user.quota_claude_used or 0) + len(results)
 
-    return render_template("gen_results_spaceship.html", variants=results)
+    # If not logged in, still render text; share buttons require login
+    if not gen_rows:
+        gen_rows = [("", v) for v in results]
+
+    return render_template("gen_results_spaceship.html", variants=results, gen_rows=gen_rows)
 

@@ -1,44 +1,57 @@
 {% extends 'base_spaceship.html' %}
 {% block content %}
 <div class="container" style="padding-top:6rem;">
-  <div class="section" style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap;">
+  <div class="section" style="display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap;">
     <div style="flex:1 1 auto; min-width:260px;">
       <p style="color:#fff; margin:0; font-size: 1.75rem; font-weight: 600;">Welcome back, {{ user_display_name(user) }}</p>
     </div>
-    <div style="flex:0 0 auto; display:flex; gap:0.75rem; align-items:flex-start; flex-wrap:wrap;">
-      <div class="card" style="padding:0.8rem 1rem; color:#fff; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); min-width:240px;">
-        <div>Plan: <strong style="margin-left:0.3rem;">{{ user.plan|title }}</strong></div>
-        {% if user.plan == 'free' %}
-        <div style="margin-top:0.6rem;">
-          <a href="/pricing" class="btn btn-cta" style="background:#ff9913; padding:0.6rem 1rem; width:100%; display:inline-block; text-align:center;">Upgrade to Personal</a>
+    <!-- Unified Plan module -->
+    <div class="card" style="flex:0 1 560px; max-width:100%; padding:1.125rem 1.25rem; color:#fff; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12);">
+      <!-- Header: plan + status -->
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:0.5rem; font-weight:600;">Plan: <span>{{ user.plan|title }}</span>
+          {% if user and user.plan != 'free' and user.cancel_at_period_end %}
+            <span class="chip" style="margin-left:0.25rem; padding:0.15rem 0.5rem; border-radius:999px; background:rgba(251,191,36,0.18); border:1px solid rgba(251,191,36,0.35); color:#fff; font-size:0.85rem;">Ends on {{ user.plan_renews_at and user.plan_renews_at.strftime('%Y-%m-%d') }}</span>
+          {% endif %}
         </div>
+        <div style="display:flex; gap:0.5rem;">
+          {% if user.plan == 'free' %}
+            <a href="/pricing" class="btn btn-cta" style="min-width:160px;">Upgrade to Personal</a>
+          {% else %}
+            <a href="/billing/portal" class="btn btn-cta" style="min-width:180px;" target="_blank" rel="noopener">Manage Subscription</a>
+          {% endif %}
+        </div>
+      </div>
+      <!-- Chips: left + renew -->
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.7rem; justify-content:space-between; align-items:center;">
+        <span class="chip" style="display:inline-block; padding:0.25rem 0.6rem; border-radius:999px; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.35);">Generations left: <strong>{{ left_total }}</strong></span>
+        <span style="flex:1 1 auto;"></span>
+        {% if user and user.plan_renews_at and not user.cancel_at_period_end %}
+        <span class="chip" style="display:inline-block; padding:0.25rem 0.6rem; border-radius:999px; background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.35);">Renews: <strong>{{ user.plan_renews_at.strftime('%Y-%m-%d') }}</strong></span>
         {% endif %}
       </div>
-      <div class="card" style="display:inline-block; align-self:flex-start; padding:0.4rem 0.75rem; color:#fff; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.35); width:auto;">
-        <span style="opacity:0.85;">Generations left:</span> <strong>{{ left_total }}</strong>
-      </div>
-      {% if user and user.plan_renews_at %}
-      <div class="card" style="display:inline-block; align-self:flex-start; padding:0.4rem 0.75rem; color:#fff; background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.35); width:auto;">
-        <span style="opacity:0.85;">Renews on:</span> <strong>{{ user.plan_renews_at.strftime('%Y-%m-%d') }}</strong>
-      </div>
-      {% endif %}
     </div>
   </div>
 
+  {# No extra banner; state is integrated into the Plan module #}
+
   <div class="section">
+    <h3 style="color:#fff; margin:0 0 0.75rem 0; font-size:1.25rem; font-weight:700;">Your Generations{% if generations_count is not none %} ({{ generations_count }}){% endif %}</h3>
     <div class="card" style="padding:1rem;">
-      <h3 style="color:#fff; margin-top:0;">Your Generations{% if generations_count is not none %} ({{ generations_count }}){% endif %}</h3>
       {% if generations %}
       <div class="list">
         {% for g in generations %}
         <details class="list-item" style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:0.75rem;">
           <summary style="cursor:pointer; color:#fff; outline:none; list-style:none;">
-            <span style="opacity:.85;">{{ g.draft_text.split('\n')[0][:120] }}{% if g.draft_text|length > 120 %}...{% endif %}</span>
+            {% set first_line = (g.draft_text.split('\n')[0] if g.draft_text else '') %}
+            <span style="opacity:.85;">{{ first_line[:120] }}{% if first_line|length > 120 %}...{% endif %}</span>
             <span style="opacity:.5; margin-left:0.5rem;">• {{ g.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
           </summary>
-          <pre style="white-space:pre-wrap; color:#ddd; margin:0.5rem 0; font-family:inherit;">{{ g.draft_text }}</pre>
+          <pre style="white-space:pre-wrap; color:#ddd; margin:0.5rem 0; font-family:inherit;">{{ (g.draft_text.split('\n', 1)[1] if ('\n' in g.draft_text) else g.draft_text) }}</pre>
+          <pre class="full-text" style="display:none;">{{ g.draft_text }}</pre>
           <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-top:0.25rem;">
-            <button class="btn" onclick="navigator.clipboard.writeText(this.parentElement.previousElementSibling.textContent).then(()=>showNotification('Copied to clipboard'))">Copy</button>
+            <button class="btn" onclick="(function(btn){var d=btn.closest('details');var full=d&&d.querySelector('.full-text'); if(full){navigator.clipboard.writeText(full.textContent).then(()=>showNotification('Copied to clipboard'));}})(this)">Copy</button>
+            <a class="btn" href="https://www.linkedin.com/sharing/share-offsite/?url={{ absolute_url('share/preview/' ~ g.id) }}" target="_blank" rel="noopener">Share on LinkedIn</a>
             <form method="post" action="/me/generations/{{ g.id }}/delete" onsubmit="return confirm('Delete this generation?')">
               <button type="submit" class="btn" style="background:rgba(239,68,68,0.25); border:1px solid rgba(239,68,68,0.5);">Delete</button>
             </form>
@@ -51,6 +64,8 @@
       {% endif %}
     </div>
   </div>
+  {# Removed local cancel/resume modals in favor of Stripe Customer Portal management #}
+
 </div>
 {% endblock %}
 

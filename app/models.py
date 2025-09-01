@@ -36,6 +36,7 @@ class User(db.Model):
     plan = db.Column(db.String(50), default="free", nullable=False)
     plan_started_at = db.Column(DateTime(timezone=True), nullable=True)
     plan_renews_at = db.Column(DateTime(timezone=True), nullable=True)
+    cancel_at_period_end = db.Column(Boolean, default=False, nullable=False)
     quota_claude_monthly = db.Column(Integer, default=3, nullable=False)
     quota_gpt_monthly = db.Column(Integer, default=2, nullable=False)
     quota_claude_used = db.Column(Integer, default=0, nullable=False)

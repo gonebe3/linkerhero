@@ -10,6 +10,7 @@ from .main.routes import bp as main_bp
 from .auth.routes import bp as auth_bp
 from .news.routes import bp as news_bp
 from .gen.routes import bp as gen_bp
+from .billing import bp as billing_bp
 
 
 def create_app() -> Flask:
@@ -88,6 +89,7 @@ def create_app() -> Flask:
     app.register_blueprint(auth_bp)
     app.register_blueprint(news_bp)
     app.register_blueprint(gen_bp)
+    app.register_blueprint(billing_bp)
 
     # Session last_seen tracker
     from flask import request
@@ -131,7 +133,12 @@ def create_app() -> Flask:
                 return token.capitalize() if token else "there"
             except Exception:
                 return "there"
-        return {"app_name": "LinkerHero", "version": "0.1.0", "user_display_name": user_display_name}
+        def absolute_url(path: str) -> str:
+            base = app.config.get("APP_BASE_URL", "").rstrip("/")
+            if not path.startswith("/"):
+                path = "/" + path
+            return f"{base}{path}" if base else path
+        return {"app_name": "LinkerHero", "version": "0.1.0", "user_display_name": user_display_name, "absolute_url": absolute_url}
 
     @app.cli.command("db:ping")
     def db_ping() -> None:

@@ -9,7 +9,7 @@
 
         
 
-    <div class="card">
+    <div class="card" style="margin-bottom: 1.125rem;">
       <form id="gen-form" action="/api/generate" method="post" hx-post="/api/generate" hx-target="#results" hx-swap="innerHTML" hx-indicator="#loading" autocomplete="off" enctype="multipart/form-data" hx-encoding="multipart/form-data" hx-on::after-settle="document.getElementById('results') && document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'});">
         {% set mode = (prefill_url and 'url') or 'text' %}
         <input type="hidden" name="source_mode" id="source_mode" value="{{ mode }}" />
@@ -278,15 +278,25 @@
     </div>
   </div>
 
-  <div id="loading" class="htmx-indicator" style="text-align: center; margin: 2rem 0;">
+  <div id="loading" class="htmx-indicator" style="text-align: center; margin: 0.75rem 0;">
     <div class="card">
       <div class="spinner" style="margin: 2rem auto;"></div>
       <p style="color: white; font-size: 1.1rem;">🚀 AI is crafting your posts...</p>
     </div>
   </div>
 
-  <div id="results" style="margin-top:1.25rem;"></div>
+  <div id="results" style="margin-top:0.4rem;"></div>
 </div>
+<script>
+  document.addEventListener('htmx:afterSettle', function(e){
+    try {
+      var results = document.getElementById('results');
+      if (results && results.firstElementChild) {
+        results.scrollIntoView({behavior:'smooth', block:'start'});
+      }
+    } catch(_){}
+  });
+</script>
 {% endblock %}
 
 

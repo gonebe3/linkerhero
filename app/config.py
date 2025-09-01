@@ -3,10 +3,14 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from typing import Any
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
-# Load .env file
-load_dotenv()
+# Load .env file robustly (project root)
+_dot_env = find_dotenv()
+if _dot_env:
+    load_dotenv(_dot_env, override=True)
+else:
+    load_dotenv(override=True)
 
 
 def normalize_neon_url(url: str | None) -> str | None:
@@ -72,6 +76,10 @@ class Config:
     OPENAI_API_KEY: str | None = os.getenv("OPENAI_API_KEY")
 
     APP_BASE_URL: str = os.getenv("APP_BASE_URL", "http://localhost:5000")
+
+    # Stripe
+    STRIPE_PUBLISHABLE_KEY: str | None = os.getenv("STRIPE_PUBLISHABLE_KEY")
+    STRIPE_SECRET_KEY: str | None = os.getenv("STRIPE_SECRET_KEY")
 
     # Ensure templates update without full restart in dev
     TEMPLATES_AUTO_RELOAD: bool = True
