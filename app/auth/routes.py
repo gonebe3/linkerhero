@@ -18,6 +18,8 @@ import httpx
 from urllib.parse import urlencode, quote_plus
 import os
 import secrets
+from flask_limiter.util import get_remote_address
+from ..limiter import limiter
 
 bp = Blueprint("auth", __name__, url_prefix="")
 
@@ -62,6 +64,8 @@ def _register_form(request_form):
 
 
 @bp.route("/register", methods=["GET", "POST"])
+@limiter.limit("3 per minute", key_func=get_remote_address)
+@limiter.limit("10 per hour", key_func=lambda: (request.form.get("email", "").strip().lower() or get_remote_address()))
 def register():
     try:
         form = _register_form(request.form)
@@ -95,7 +99,12 @@ def register():
         with db_session() as session_db:
             existing = session_db.execute(select(User).where(User.email == email)).scalar_one_or_none()
             if existing:
-                return render_template("auth_login_spaceship.html", sent=False, error="Email already registered. Please log in.")
+                # If not verified yet, resend confirmation and show magic page for consistent UX
+                if not getattr(existing, "email_verified_at", None):
+                    token = _confirm_serializer().dumps(email)
+                    link = f"{current_app.config['APP_BASE_URL']}{url_for('auth.confirm')}?token={token}"
+                    _send_email(email, "Confirm your LinkerHero email", f"Please confirm your email: {link}")
+                return render_template("auth_magic_spaceship.html")
             now = datetime.now(timezone.utc)
             user = User(
                 email=email,
@@ -159,6 +168,8 @@ def ensure_admin(email: str) -> None:
 
 
 @bp.route("/login", methods=["GET", "POST"])
+@limiter.limit("3 per minute", key_func=get_remote_address)
+@limiter.limit("10 per hour", key_func=lambda: (request.form.get("email", "").strip().lower() or get_remote_address()))
 def login():
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
@@ -214,6 +225,7 @@ def magic():
 
 
 @bp.route("/confirm/resend")
+@limiter.limit("3 per hour", key_func=lambda: (request.args.get("email", "").strip().lower() or get_remote_address()))
 def resend_confirm():
     email = request.args.get("email", "").strip().lower()
     if not email:
@@ -253,6 +265,8 @@ def logout():
 
 
 @bp.route("/login_password", methods=["POST"])
+@limiter.limit("5 per minute", key_func=get_remote_address)
+@limiter.limit("20 per hour", key_func=lambda: (request.form.get("email", "").strip().lower() or get_remote_address()))
 def login_password():
     email = request.form.get("email", "").strip().lower()
     password = request.form.get("password", "")
@@ -275,6 +289,7 @@ def login_password():
 # --- LinkedIn OAuth (Authorization Code + PKCE not required for confidential apps) ---
 
 @bp.route("/login/linkedin")
+@limiter.limit("10 per minute", key_func=get_remote_address)
 def login_linkedin_start():
     client_id = current_app.config.get("LINKEDIN_CLIENT_ID")
     if not client_id:
@@ -494,6 +509,7 @@ def login_linkedin_callback():
 # --- Google OAuth (Authorization Code; confidential app) ---
 
 @bp.route("/oauth/google/start")
+@limiter.limit("10 per minute", key_func=get_remote_address)
 def login_google_start():
     client_id = current_app.config.get("GOOGLE_CLIENT_ID") or os.getenv("GOOGLE_CLIENT_ID")
     if not client_id:

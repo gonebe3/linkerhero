@@ -7,6 +7,8 @@ from . import bp
 from ..db import db_session
 from ..models import User, PaymentAttempt
 from ..utils import next_month
+from ..limiter import limiter
+from flask_limiter.util import get_remote_address
 
 def _clean_value(v: str | None) -> str | None:
     if not v:
@@ -42,6 +44,7 @@ def get_config():
 
 
 @bp.post("/create-payment-intent")
+@limiter.limit("10 per minute", key_func=lambda: (flask_session.get("user_id") or get_remote_address()))
 def create_payment_intent():
     import stripe
 
@@ -68,6 +71,7 @@ def create_payment_intent():
 
 
 @bp.post("/success")
+@limiter.limit("10 per minute", key_func=lambda: (flask_session.get("user_id") or get_remote_address()))
 def payment_success():
     import stripe
 

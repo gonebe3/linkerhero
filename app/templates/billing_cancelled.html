@@ -1,23 +1,23 @@
 {% extends 'base_spaceship.html' %}
 {% block content %}
-<div class="container" style="padding-top:6rem;">
-  <div class="section" style="max-width:760px; margin:0 auto;">
-    <div class="card" style="padding:2rem; text-align:center;">
-      <h1 style="color:#fff; margin:0 0 0.75rem 0; font-size:2rem;">We’re sorry to see you go</h1>
-      <p style="color:#bbb; font-size:1.05rem; line-height:1.7; margin:0 0 1rem 0;">
+<div class="container pt-6rem">
+  <div class="section maxw-760 mx-auto">
+    <div class="card p-2rem text-center">
+      <h1 class="c-white fs-2rem mb-2">We’re sorry to see you go</h1>
+      <p class="c-muted fs-105rem lh-17 mb-1rem">
         Your subscription has been canceled, and you’ve been moved to the Free plan.
         We’re grateful you tried LinkerHero. If there’s anything we could have done better—features, pricing, or UX—
         we’d love to hear from you.
       </p>
-      <p style="color:#bbb; font-size:1.05rem; line-height:1.7; margin:0 0 1.5rem 0;">
+      <p class="c-muted fs-105rem mb-15rem lh-17">
         You can continue generating a limited number of drafts on the Free plan. When you’re ready, you’re always welcome back.
       </p>
-      <div style="display:flex; gap:0.75rem; justify-content:center; flex-wrap:wrap;">
+      <div class="flex gap-075 justify-center flex-wrap">
         <a href="/pricing" class="btn">Explore plans</a>
         <a href="/me/dashboard" class="btn btn-secondary">Return to dashboard</a>
       </div>
-      <div style="margin-top:1.25rem;">
-        <a href="mailto:hello@linkerhero.com?subject=Feedback%20about%20cancellation" style="color:#ff9913; text-decoration:none;">Share feedback</a>
+      <div class="mt-125rem">
+        <a href="mailto:hello@linkerhero.com?subject=Feedback%20about%20cancellation" class="link-cta">Share feedback</a>
       </div>
     </div>
   </div>

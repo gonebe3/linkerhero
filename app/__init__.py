@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from flask import Flask
 import re
+import os
 from .config import Config
 from .db import db, db_session
 from sqlalchemy import text
@@ -11,6 +12,8 @@ from .auth.routes import bp as auth_bp
 from .news.routes import bp as news_bp
 from .gen.routes import bp as gen_bp
 from .billing import bp as billing_bp
+from flask_wtf.csrf import CSRFProtect, CSRFError
+from .limiter import limiter
 
 
 def create_app() -> Flask:
@@ -91,6 +94,35 @@ def create_app() -> Flask:
     app.register_blueprint(gen_bp)
     app.register_blueprint(billing_bp)
 
+    # CSRF protection (global)
+    csrf = CSRFProtect()
+    csrf.init_app(app)
+
+    # Rate limiting (global)
+    limiter.init_app(app)
+
+    # Exempt Stripe webhook (validated by Stripe signature separately)
+    try:
+        from .billing.routes import stripe_webhook as _stripe_webhook
+        csrf.exempt(_stripe_webhook)
+    except Exception:
+        pass
+
+    # Friendly CSRF error handler
+    from flask import request, jsonify, render_template
+
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(e):  # type: ignore[override]
+        try:
+            if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+                return jsonify({"error": "CSRF token missing or invalid"}), 400
+        except Exception:
+            pass
+        try:
+            return render_template("billing_error.html", message="Security check failed. Please refresh and try again."), 400
+        except Exception:
+            return ("CSRF token missing or invalid", 400)
+
     # Session last_seen tracker
     from flask import request
     from .models import User, Session as UserSession
@@ -119,6 +151,7 @@ def create_app() -> Flask:
                     pass
     @app.context_processor
     def inject_globals():
+        from flask_wtf.csrf import generate_csrf
         def user_display_name(user: object | None) -> str:
             try:
                 if not user:
@@ -138,7 +171,13 @@ def create_app() -> Flask:
             if not path.startswith("/"):
                 path = "/" + path
             return f"{base}{path}" if base else path
-        return {"app_name": "LinkerHero", "version": "0.1.0", "user_display_name": user_display_name, "absolute_url": absolute_url}
+        # Expose CSS helper for templates
+        try:
+            from .static.css.css import render_stylesheets as css
+        except Exception:
+            def css(*_args, **_kwargs):
+                return ""
+        return {"app_name": "LinkerHero", "version": "0.1.0", "user_display_name": user_display_name, "absolute_url": absolute_url, "css": css, "csrf_token": generate_csrf}
 
     @app.cli.command("db:ping")
     def db_ping() -> None:

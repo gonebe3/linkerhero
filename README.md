@@ -1,13 +1,13 @@
 # LinkerHero
 
-Production-ready Flask + HTMX app with Neon Postgres, Alembic, and LLM provider routing (Anthropic/OpenAI).
+Production-ready Flask + HTMX app with Postgres (Railway/Neon), Alembic, and LLM provider routing (Anthropic/OpenAI).
 
 ## Setup
 
 1. Create a virtualenv and install deps:
 
 ```
-python -m venv .venv && . .venv/Scripts/activate  # Windows PowerShell: .venv\\Scripts\\Activate.ps1
+python -m venv .venv && . .venv/Scripts/activate  # Windows PowerShell: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
@@ -23,12 +23,17 @@ Fill secrets locally. Do not commit.
 
 - FLASK_ENV: development|production
 - SECRET_KEY
-- DATABASE_URL: Neon pooled runtime URL
-- DATABASE_URL_DIRECT: Neon direct URL for Alembic migrations
+- DATABASE_URL: Postgres runtime URL (Railway/Neon)
+- DATABASE_URL_DIRECT: Postgres direct URL for Alembic migrations (optional; falls back to DATABASE_URL)
 - MAIL_FROM, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
 - LLM_PROVIDER: anthropic|openai
 - ANTHROPIC_API_KEY, OPENAI_API_KEY
 - APP_BASE_URL
+- REDIS_URL (for rate limiting; memory:// used if unset in dev)
+
+Notes:
+- We normalize both `postgresql://` and `postgres://` to `postgresql+psycopg://` automatically.
+- In production, include `sslmode=require` if your provider needs it.
 
 ## Local run
 
@@ -47,7 +52,7 @@ make revision  # autogenerate new migration
 make migrate   # upgrade to head
 ```
 
-Alembic uses `DATABASE_URL_DIRECT`.
+Alembic uses `DATABASE_URL_DIRECT` if set, otherwise `DATABASE_URL`.
 
 ## Migrations (direct CLI; Flask-SQLAlchemy + Alembic)
 
@@ -67,7 +72,7 @@ python -m flask --app app:create_app db upgrade
 Notes:
 - Models live in `app/models.py` and use `db.Model` (Flask-SQLAlchemy).
 - Alembic reads metadata from Flask-SQLAlchemy and the database URL from app config.
-- `.env` should include: `FLASK_APP=app:create_app`, `FLASK_ENV`, `DATABASE_URL` (Neon pooled) and optionally `DATABASE_URL_DIRECT`.
+- `.env` should include: `FLASK_APP=app:create_app`, `FLASK_ENV`, `DATABASE_URL` and optionally `DATABASE_URL_DIRECT`.
 
 ## CLI
 
@@ -84,14 +89,8 @@ python -m flask --app app rss:refresh
 ## Deploy
 
 - Use `Procfile` with Gunicorn: `web: gunicorn 'app:create_app()' --workers 2 --threads 4 --timeout 60`
-- Set env vars in your host (Render/Fly/Heroku). Configure `APP_BASE_URL` to your prod URL.
-- Add a Cron (Render Cron/worker) to call `rss:refresh` every 3–6h.
-
-## Next steps
-
-- Push to GitHub and connect your deployment platform
-- Set Render env vars: DATABASE_URL (pooled), DATABASE_URL_DIRECT (direct), SECRET_KEY, SMTP_*, LLM_PROVIDER, provider API keys, APP_BASE_URL
-- Add Render Cron to run `python -m flask --app app rss:refresh`
+- Set env vars in your host (Railway/Render/Fly/Heroku). Configure `APP_BASE_URL` to your prod URL.
+- Add a scheduler/cron to call `rss:refresh` every 3–6h.
 
 ## Testing
 

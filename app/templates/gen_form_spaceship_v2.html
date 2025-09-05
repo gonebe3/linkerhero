@@ -1,16 +1,17 @@
 {% extends 'base_spaceship.html' %}
 {% block content %}
-<div class="container" style="padding-top: 6rem;">
+<div class="container pt-6rem">
       <div class="section">
         <div class="text-center mb-6">
-          <h1 style="font-size: 2.5rem; font-weight: 800; margin-bottom: 1rem; color: white;">Generate LinkedIn Drafts</h1>
-          <p style="font-size: 1.2rem; color: rgba(255, 255, 255, 0.8);">Turn a URL, your text, or a file into LinkedIn‑style drafts.</p>
+          <h1 class="fs-25rem fw-800 mb-1rem c-white">Generate LinkedIn Drafts</h1>
+          <p class="fs-12rem c-white-80">Turn a URL, your text, or a file into LinkedIn‑style drafts.</p>
         </div>
 
         
 
-    <div class="card" style="margin-bottom: 1.125rem;">
+    <div class="card mb-2">
       <form id="gen-form" action="/api/generate" method="post" hx-post="/api/generate" hx-target="#results" hx-swap="innerHTML" hx-indicator="#loading" autocomplete="off" enctype="multipart/form-data" hx-encoding="multipart/form-data" hx-on::after-settle="document.getElementById('results') && document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'});">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         {% set mode = (prefill_url and 'url') or 'text' %}
         <input type="hidden" name="source_mode" id="source_mode" value="{{ mode }}" />
 
@@ -23,21 +24,21 @@
           </div>
         </div>
 
-          <div class="form-group" id="block-url" style="display:none;">
+          <div class="form-group hidden" id="block-url">
             <label class="form-label">🔗 Article URL</label>
             <input type="url" name="url" value="{{ prefill_url or form.url.data or '' }}" class="form-input" placeholder="Insert article URL" />
-            <p style="font-size: 0.9rem; color: rgba(255, 255, 255, 0.6); margin-top: 0.5rem;">Paste a single public URL. We’ll fetch the content.</p>
+            <p class="fs-09rem c-white-60 mt-05">Paste a single public URL. We’ll fetch the content.</p>
           </div>
 
         
 
-          <div class="form-group" id="block-text" style="display:none;">
+          <div class="form-group hidden" id="block-text">
             <label class="form-label">✍️ Write/Paste Text</label>
             <textarea name="text" rows="6" class="form-textarea" placeholder="Insert your text here">{{ form.text.data or '' }}</textarea>
-            <p style="font-size: 0.9rem; color: rgba(255, 255, 255, 0.6); margin-top: 0.5rem;">Provide exactly one source: Text, URL, or File.</p>
+            <p class="fs-09rem c-white-60 mt-05">Provide exactly one source: Text, URL, or File.</p>
           </div>
 
-          <div class="form-group" id="block-file" style="display:none;">
+          <div class="form-group hidden" id="block-file">
             <label class="form-label">📄 Upload File</label>
             <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-label="Upload file by clicking or dragging">
               <input type="file" name="file" id="file_input" hidden accept=".txt,.pdf,.docx" />
@@ -48,7 +49,7 @@
                   <div class="dropzone__hint">Up to 50 MB. Supported: .txt, .pdf, .docx</div>
                 </div>
               </div>
-              <div class="dropzone__preview" id="file_preview" style="display:none;"></div>
+              <div class="dropzone__preview hidden" id="file_preview"></div>
             </div>
           </div>
         </div>
@@ -56,7 +57,7 @@
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">🧲 Hook Type
-              <span title="The opening style of the post; choose the kind of hook you want (e.g., question or contrarian)." style="cursor: help; color: rgba(255,255,255,0.8);">ℹ️</span>
+              <span title="The opening style of the post; choose the kind of hook you want (e.g., question or contrarian)." class="cursor-help c-white-80">ℹ️</span>
             </label>
             <div class="custom-select" data-select-name="hook_type">
               <button type="button" class="custom-select__button" data-value="{{ form.hook_type.data or 'auto' }}">{{ {'auto':'Auto','question':'Question','contrarian':'Contrarian','numbered':'Numbered','how_to':'How-to','story':'Short Story'}[form.hook_type.data or 'auto'] }}</button>
@@ -117,7 +118,7 @@
         </div>
 
         <div class="text-center mt-4">
-          <button type="submit" class="btn btn-cta" style="font-size: 1.2rem; padding: 1.2rem 3rem;">
+          <button type="submit" class="btn btn-cta py-12rem px-3rem fs-12rem">
             ✨ Generate Posts
           </button>
         </div>
@@ -278,14 +279,14 @@
     </div>
   </div>
 
-  <div id="loading" class="htmx-indicator" style="text-align: center; margin: 0.75rem 0;">
+  <div id="loading" class="htmx-indicator text-center mt-3">
     <div class="card">
-      <div class="spinner" style="margin: 2rem auto;"></div>
-      <p style="color: white; font-size: 1.1rem;">🚀 AI is crafting your posts...</p>
+      <div class="spinner my-2rem mx-auto"></div>
+      <p class="c-white fs-11rem">🚀 AI is crafting your posts...</p>
     </div>
   </div>
 
-  <div id="results" style="margin-top:0.4rem;"></div>
+  <div id="results" class="mt-3"></div>
 </div>
 <script>
   document.addEventListener('htmx:afterSettle', function(e){

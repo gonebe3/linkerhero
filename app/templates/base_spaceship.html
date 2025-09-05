@@ -3,8 +3,9 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
     <title>{{ app_name }} - AI-Powered LinkedIn Post Generator</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/spaceship.css') }}" />
+    {{ css('spaceship.css')|safe }}
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,7 +28,7 @@
           <a href="/logout">Logout</a>
           {% else %}
           <a href="/login">Login</a>
-          <a href="/register" class="btn btn-cta" style="padding:8px 16px; border-radius:10px;">Try it for Free</a>
+          <a href="/register" class="btn btn-cta px-16 py-08 rounded-10">Try it for Free</a>
           {% endif %}
         </div>
       </div>
@@ -42,4 +43,18 @@
     <script src="{{ url_for('static', filename='js/spaceship.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}" type="module"></script>
   </body>
+  <script>
+    (function(){
+      try {
+        var token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        if (window.htmx) {
+          document.body.addEventListener('htmx:configRequest', function (event) {
+            event.detail.headers['X-CSRFToken'] = token;
+          });
+        }
+        // Also set default for fetch if app code opts in
+        window.__CSRF_TOKEN__ = token;
+      } catch (_) {}
+    })();
+  </script>
 </html>

@@ -1,11 +1,11 @@
 {% extends 'base_spaceship.html' %}
 {% block content %}
-<div class="container" style="padding-top:6rem;">
+<div class="container pt-6rem">
   <div class="section">
-    <div class="card" style="padding:1rem; color:#fff; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12);">
-      <h2 style="margin-top:0;">Billing Error</h2>
-      <p style="color:#bbb;">{{ message or 'Something went wrong while opening the Stripe Customer Portal.' }}</p>
-      <div style="margin-top:0.75rem;">
+    <div class="card p-1 c-white bg-card border-card">
+      <h2 class="mb-0">Billing Error</h2>
+      <p class="c-muted">{{ message or 'Something went wrong while opening the Stripe Customer Portal.' }}</p>
+      <div class="mt-3">
         <a href="/me/dashboard" class="btn">Back to dashboard</a>
       </div>
     </div>

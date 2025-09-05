@@ -1,12 +1,12 @@
 {% extends 'base_spaceship.html' %}
 {% block content %}
-<div class="container" style="padding-top:6rem;">
+<div class="container pt-6rem">
   <div class="section">
-    <div class="card" style="padding:1rem;">
-      <h1 style="color:#fff; margin:0 0 0.5rem 0;">{{ title }}</h1>
-      <p style="color:#bbb;">{{ description }}</p>
-      <hr style="border-color:rgba(255,255,255,0.1);">
-      <pre style="white-space:pre-wrap; color:#ddd; margin:0; font-family:inherit;">{{ body }}</pre>
+    <div class="card p-1">
+      <h1 class="c-white mb-2">{{ title }}</h1>
+      <p class="c-muted">{{ description }}</p>
+      <hr class="hr-muted">
+      <pre class="pre-wrap c-very-muted m-0 font-inherit">{{ body }}</pre>
     </div>
   </div>
 </div>

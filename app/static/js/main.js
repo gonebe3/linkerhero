@@ -46,7 +46,7 @@ export async function initStripeCheckout() {
     const ready = await ensureStripe();
     if (!ready) return;
     const amount = 899, currency = 'usd';
-    const resp = await fetch('/billing/create-payment-intent', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ amount_cents: amount, currency }) });
+    const resp = await fetch('/billing/create-payment-intent', { method: 'POST', headers: {'Content-Type':'application/json','X-CSRFToken': (window.__CSRF_TOKEN__||'') }, body: JSON.stringify({ amount, amount_cents: amount, currency }) });
     const data = await resp.json();
     if (!data.clientSecret) { console.error('PI error', data); return; }
     const errorBox = document.getElementById('stripe-error');
@@ -55,7 +55,7 @@ export async function initStripeCheckout() {
       const { error, paymentIntent } = await stripe.confirmCardPayment(data.clientSecret, { payment_method: { card: cardNumber } });
       if (error) { errorBox.textContent = error.message || 'Payment failed'; errorBox.style.display='block'; directPayBtn.disabled=false; return; }
       if (paymentIntent && paymentIntent.status === 'succeeded') {
-        await fetch('/billing/success', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ payment_intent_id: paymentIntent.id }) });
+        await fetch('/billing/success', { method: 'POST', headers: {'Content-Type':'application/json','X-CSRFToken': (window.__CSRF_TOKEN__||'') }, body: JSON.stringify({ payment_intent_id: paymentIntent.id }) });
         window.location.href = '/me/dashboard';
       }
     };

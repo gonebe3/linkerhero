@@ -1,13 +1,13 @@
 <div class="container">
   <div class="section">
     {% if error %}
-    <div class="error" style="margin-bottom: 1rem;">
+    <div class="error mb-1rem">
       {{ error }}
     </div>
     {% endif %}
     <div class="text-center mb-4">
-      <h2 style="font-size: 2rem; font-weight: 800; color: white;">✨ Your AI‑Crafted Draft</h2>
-      <p style="color: rgba(255, 255, 255, 0.8);">A clear, compelling post designed to spark conversations. Polish, make it yours, and share with confidence.</p>
+      <h2 class="fs-2rem fw-800 c-white">✨ Your AI‑Crafted Draft</h2>
+      <p class="c-white-80">A clear, compelling post designed to spark conversations. Polish, make it yours, and share with confidence.</p>
     </div>
     
     {% set rows = gen_rows if gen_rows is defined else [] %}
@@ -15,14 +15,14 @@
     {% for row in rows %}
     {% set gid = row[0] %}
     {% set v = row[1] %}
-    <div class="card" style="margin-bottom: 1.5rem;">
+    <div class="card mb-15rem">
       <div class="card-header">
-        <h3 style="color: white; font-size: 1.3rem; font-weight: 700;">Draft</h3>
+        <h3 class="c-white fs-13rem fw-700">Draft</h3>
       </div>
       
       <div class="generated-content">{{ v | replace('\n\n', '<br/><br/>') | replace('\n', '<br/>') | safe }}</div>
       
-      <div class="text-center mt-3" style="display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
+      <div class="text-center mt-3 flex gap-05 justify-center flex-wrap">
         <button class="btn btn-copy" onclick="copyToClipboard(this, `{{ v|replace('`', '\\`')|replace('\\', '\\\\')|replace('\n', '\\n') }}`)">📋 Copy to Clipboard</button>
         {% if gid %}
         <a class="btn" href="https://www.linkedin.com/sharing/share-offsite/?url={{ absolute_url('share/preview/' ~ gid) }}" target="_blank" rel="noopener">Share on LinkedIn</a>
@@ -32,9 +32,9 @@
     {% endfor %}
     {% else %}
     {% for v in variants %}
-    <div class="card" style="margin-bottom: 1.5rem;">
+    <div class="card mb-15rem">
       <div class="card-header">
-        <h3 style="color: white; font-size: 1.3rem; font-weight: 700;">Draft</h3>
+        <h3 class="c-white fs-13rem fw-700">Draft</h3>
       </div>
       
       <div class="generated-content">{{ v | replace('\n\n', '<br/><br/>') | replace('\n', '<br/>') | safe }}</div>
@@ -48,7 +48,7 @@
     
     <div class="text-center">
       <a href="/generate" class="btn btn-secondary">🔄 Generate More Posts</a>
-      <a href="/news" class="btn" style="margin-left: 1rem;">📰 Browse Articles</a>
+      <a href="/news" class="btn ml-1rem">📰 Browse Articles</a>
     </div>
   </div>
 </div>

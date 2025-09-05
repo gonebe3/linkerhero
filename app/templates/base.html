@@ -3,8 +3,9 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
     <title>{{ app_name }} - {{ version }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+    {{ css('app.css')|safe }}
     <script src="/static/js/htmx.min.js"></script>
   </head>
   <body>
@@ -22,5 +23,18 @@
       {% block content %}{% endblock %}
     </main>
   </body>
+  <script>
+    (function(){
+      try {
+        var token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        if (window.htmx) {
+          document.body.addEventListener('htmx:configRequest', function (event) {
+            event.detail.headers['X-CSRFToken'] = token;
+          });
+        }
+        window.__CSRF_TOKEN__ = token;
+      } catch (_) {}
+    })();
+  </script>
 </html>
 

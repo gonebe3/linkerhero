@@ -33,6 +33,9 @@ def normalize_neon_url(url: str | None) -> str | None:
     # Convert to psycopg3 format
     if s.startswith("postgresql://"):
         s = "postgresql+psycopg://" + s[len("postgresql://"):]
+    elif s.startswith("postgres://"):
+        # Common alias used by some providers; map to SQLAlchemy psycopg3 dialect
+        s = "postgresql+psycopg://" + s[len("postgres://"):]
     
     return s
 

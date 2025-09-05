@@ -18,6 +18,8 @@ from .extractors import (
 from .vision_extractor import extract_markdown_from_pdf_via_vision
 from .easyocr_extractor import extract_text_from_pdf_via_easyocr
 from .forms import GenerateForm
+from ..limiter import limiter
+from flask_limiter.util import get_remote_address
 
 bp = Blueprint("gen", __name__, url_prefix="")
 
@@ -45,9 +47,22 @@ def generate_form_v2():
 
 
 @bp.route("/api/generate", methods=["POST"])
+@limiter.limit("10 per minute")
+@limiter.limit("10 per minute", key_func=get_remote_address)
 def api_generate():
     form = GenerateForm()
     user_id = session.get("user_id")
+    if user_id:
+        try:
+            with db_session() as s:
+                user = s.get(User, user_id)
+                if user:
+                    left_gpt = max(0, (user.quota_gpt_monthly or 0) - (user.quota_gpt_used or 0))
+                    left_claude = max(0, (user.quota_claude_monthly or 0) - (user.quota_claude_used or 0))
+                    if (left_gpt + left_claude) <= 0:
+                        return render_template("gen_results_spaceship.html", variants=[], error="Monthly quota reached. Upgrade your plan or wait for renewal.")
+        except Exception:
+            pass
     url = (form.url.data or "").strip()
     article_id = ""  # legacy, removed from UI
     persona = form.persona.data or "PM"
