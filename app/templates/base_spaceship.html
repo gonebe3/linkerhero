@@ -33,6 +33,16 @@
         </div>
       </div>
     </nav>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="container mt-1">
+      {% for category, m in messages %}
+      <div class="{{ 'error' if category in ['error','danger'] else 'success' if category in ['success'] else 'card p-05 bg-soft border-soft' }} mb-1">{{ m }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
     
     <main>
       {% block content %}{% endblock %}
@@ -52,7 +62,6 @@
             event.detail.headers['X-CSRFToken'] = token;
           });
         }
-        // Also set default for fetch if app code opts in
         window.__CSRF_TOKEN__ = token;
       } catch (_) {}
     })();

@@ -11,13 +11,21 @@
       <!-- Password first (default) -->
       <form method="post" action="/login_password">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+        {% if error %}
+        <div class="error mb-1">{{ error }}</div>
+        {% endif %}
+
         <div class="form-group">
           <label class="form-label">Email</label>
-          <input type="email" name="email" class="form-input" placeholder="you@example.com" required />
+          <input type="email" name="email" class="form-input" placeholder="you@example.com" value="{{ prefill_email or '' }}" required />
         </div>
         <div class="form-group">
           <label class="form-label">Password</label>
           <input type="password" name="password" class="form-input" placeholder="••••••••" required />
+          <div class="mt-05">
+            <a href="/forgot" class="link-cta">Forgot your password?</a>
+          </div>
         </div>
         <div class="text-center">
           <button type="submit" class="btn btn-cta w-full fs-105rem p-1">Sign in</button>
@@ -29,12 +37,7 @@
         <a href="/login/linkedin" class="btn btn-translucent">Continue with LinkedIn</a>
         <a href="/oauth/google/start" class="btn btn-translucent">Continue with Google</a>
       </div>
-      
-      {% if error %}
-      <div class="error mt-4">
-        {{ error }}
-      </div>
-      {% endif %}
+
     </div>
     
     <div class="text-center mt-4">

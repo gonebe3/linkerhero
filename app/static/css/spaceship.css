@@ -1190,7 +1190,44 @@ body {
 .btn-translucent { background: rgba(255,255,255,0.15); }
 
 /* Forms */
-.checkbox-custom { appearance:none; width:22px; height:22px; border:2px solid #fff; background:#000; display:inline-grid; place-content:center; }
+.checkbox-custom {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 24px;
+  height: 24px;
+  border: 2px solid #fff;
+  background: #000;
+  display: inline-block;
+  position: relative;
+  border-radius: 6px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.checkbox-custom:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255,111,78,0.35);
+  border-color: #ff6f4e;
+}
+.checkbox-custom:checked {
+  background: #ff6f4e;
+  border-color: #ff6f4e;
+}
+/* Centered check mark */
+.checkbox-custom::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 7px;
+  border: 2px solid transparent;
+  border-left-color: #fff;
+  border-bottom-color: #fff;
+  transform: translate(-50%, -60%) rotate(-45deg);
+  opacity: 0;
+}
+.checkbox-custom:checked::after { opacity: 1; }
 .stripe-element { padding: 12px; background: rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius:8px; }
 .cursor-help { cursor: help; }
 .hidden { display: none; }

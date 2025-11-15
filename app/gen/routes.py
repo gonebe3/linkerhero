@@ -60,7 +60,11 @@ def api_generate():
                     left_gpt = max(0, (user.quota_gpt_monthly or 0) - (user.quota_gpt_used or 0))
                     left_claude = max(0, (user.quota_claude_monthly or 0) - (user.quota_claude_used or 0))
                     if (left_gpt + left_claude) <= 0:
-                        return render_template("gen_results_spaceship.html", variants=[], error="Monthly quota reached. Upgrade your plan or wait for renewal.")
+                        from flask import flash
+                        if request.headers.get('HX-Request'):
+                            return render_template("gen_results_spaceship.html", variants=[], error="Monthly quota reached. Upgrade your plan or wait for renewal.")
+                        flash("Monthly quota reached. Upgrade your plan or wait for renewal.", "error")
+                        return redirect(url_for("main.dashboard"))
         except Exception:
             pass
     url = (form.url.data or "").strip()
@@ -188,7 +192,11 @@ def api_generate():
 
     # We already respected explicit mode; double-check extracted text presence
     if not source_text:
-        return render_template("gen_results_spaceship.html", variants=[], error="Could not read any content from your input.")
+        if request.headers.get('HX-Request'):
+            return render_template("gen_results_spaceship.html", variants=[], error="Could not read any content from your input.")
+        from flask import flash
+        flash("Could not read any content from your input.", "error")
+        return redirect(url_for("gen.generate_form"))
 
     provider = get_provider("openai" if model_choice in {"gpt", "gpt5", "openai", "chatgpt", "gpt-5"} else "anthropic")
     kw_dict: dict[str, float] = {}
@@ -235,7 +243,11 @@ def api_generate():
         )
     # If the model responded with our sentinel indicating insufficient grounding, return error
     if variants and isinstance(variants[0], str) and variants[0].strip().upper() == "INSUFFICIENT_SOURCE":
-        return render_template("gen_results_spaceship.html", variants=[], error="The uploaded content doesn’t have enough usable text to write a grounded post. Please upload a richer file or paste more text.")
+        if request.headers.get('HX-Request'):
+            return render_template("gen_results_spaceship.html", variants=[], error="The uploaded content doesn’t have enough usable text to write a grounded post. Please upload a richer file or paste more text.")
+        from flask import flash
+        flash("Not enough usable text to generate a grounded post. Try a richer source.", "error")
+        return redirect(url_for("gen.generate_form"))
 
     # MVP: no scoring; just pass strings to template
     results = variants
@@ -269,5 +281,11 @@ def api_generate():
     if not gen_rows:
         gen_rows = [("", v) for v in results]
 
-    return render_template("gen_results_spaceship.html", variants=results, gen_rows=gen_rows)
+    # HTMX path returns fragment; non-HTMX redirects (PRG) to avoid resubmission dialogs
+    if request.headers.get('HX-Request'):
+        return render_template("gen_results_spaceship.html", variants=results, gen_rows=gen_rows)
+
+    from flask import flash
+    flash("Draft(s) generated successfully.", "success")
+    return redirect(url_for("main.dashboard"))
 

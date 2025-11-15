@@ -123,6 +123,39 @@ def create_app() -> Flask:
         except Exception:
             return ("CSRF token missing or invalid", 400)
 
+    # Friendly 429 handler
+    @app.errorhandler(429)
+    def handle_rate_limit(e):  # type: ignore[override]
+        try:
+            # Extract information if provided by limiter headers
+            retry_after = None
+            try:
+                retry_after = int(request.headers.get('Retry-After', '0'))
+            except Exception:
+                retry_after = None
+            return render_template(
+                "rate_limited.html",
+                title="Too Many Requests",
+                message="You’ve hit a temporary rate limit. Please wait a moment and try again.",
+                retry_after=retry_after,
+            ), 429
+        except Exception:
+            return ("Too Many Requests", 429)
+
+    @app.errorhandler(404)
+    def handle_not_found(e):  # type: ignore[override]
+        try:
+            return render_template("errors/404.html"), 404
+        except Exception:
+            return ("Page not found", 404)
+
+    @app.errorhandler(500)
+    def handle_server_error(e):  # type: ignore[override]
+        try:
+            return render_template("errors/500.html"), 500
+        except Exception:
+            return ("Something went wrong", 500)
+
     # Session last_seen tracker
     from flask import request
     from .models import User, Session as UserSession
@@ -206,7 +239,7 @@ def create_app() -> Flask:
                 removed += 1
         print(f"soft-deleted {removed} articles without image")
 
-    from .auth.routes import ensure_admin
+    from .auth.services import ensure_admin
     import click
 
     @app.cli.command("user:create_admin")

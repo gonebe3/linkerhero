@@ -45,6 +45,8 @@ class User(db.Model):
     default_language = db.Column(db.String(10), nullable=True)
     marketing_opt_in = db.Column(Boolean, default=False, nullable=False)
     privacy_accepted_at = db.Column(DateTime(timezone=True), nullable=True)
+    password_reset_nonce = db.Column(db.String(64), nullable=True)
+    password_reset_sent_at = db.Column(DateTime(timezone=True), nullable=True)
 
     generations = db.relationship("Generation", back_populates="user")
     sessions = db.relationship(

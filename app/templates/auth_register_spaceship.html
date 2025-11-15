@@ -10,9 +10,20 @@
     <div class="card">
       <form method="post" action="/register" autocomplete="off">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+        {% if error %}
+        <div class="error mb-1 text-center">{{ error }}</div>
+        {% endif %}
+        {% if already_registered %}
+        <div class="card p-05 bg-soft border-soft c-white mb-1 text-center">
+          <div class="mb-05">This email is already registered. Would you like to log in?</div>
+          <a class="btn btn-cta inline-block" href="/login">Go to Login</a>
+        </div>
+        {% endif %}
+
         <div class="form-group">
           <label class="form-label">Email</label>
-          <input type="email" name="email" class="form-input" placeholder="you@example.com" autocomplete="off" required />
+          <input type="email" name="email" class="form-input" placeholder="you@example.com" value="{{ prefill_email or '' }}" autocomplete="off" required />
         </div>
         <div class="form-group">
           <label class="form-label">Password</label>
@@ -42,34 +53,19 @@
           const emailInput = document.querySelector('input[name=email]');
           const pwdInput = document.querySelector('input[name=password]');
           const extras = document.getElementById('register-extras');
-          let userTyped = false;
           function showExtrasIfReady() {
             const emailReady = emailInput && emailInput.value.length > 0 && emailInput.checkValidity();
             const pwdReady = pwdInput && pwdInput.value.length > 0;
-            // Only reveal extras after the user actually types, to avoid Chrome autofill-on-first-click UX glitches
-            extras.style.display = (userTyped && emailReady && pwdReady) ? 'block' : 'none';
+            extras.style.display = (emailReady && pwdReady) ? 'block' : 'none';
           }
-          const markTyped = () => { userTyped = true; };
-          emailInput.addEventListener('keydown', markTyped);
-          pwdInput.addEventListener('keydown', markTyped);
           emailInput.addEventListener('input', showExtrasIfReady);
           pwdInput.addEventListener('input', showExtrasIfReady);
-          // draw white X when checked
-          document.addEventListener('change', (e) => {
-            if (e.target && e.target.matches('input[type=checkbox]')) {
-              e.target.style.background = e.target.checked ? 'linear-gradient(45deg, transparent 45%, #fff 45%, #fff 55%, transparent 55%), linear-gradient(-45deg, transparent 45%, #fff 45%, #fff 55%, transparent 55%)' : '#000';
-              e.target.style.backgroundSize = '100% 100%';
-            }
-          });
+          document.addEventListener('DOMContentLoaded', showExtrasIfReady);
         </script>
-        <div class="text-center">
+        <div class="text-center mt-1">
           <button type="submit" class="btn btn-cta w-full p-1">Create Account</button>
         </div>
       </form>
-
-      {% if error %}
-      <div class="error mt-4">{{ error }}</div>
-      {% endif %}
 
       <div class="text-center my-3 c-white-60">or</div>
       <div class="flex gap-05 flex-wrap justify-center">
