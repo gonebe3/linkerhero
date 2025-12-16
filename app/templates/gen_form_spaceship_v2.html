@@ -27,7 +27,11 @@
           <div class="form-group {% if mode != 'url' %}hidden{% endif %}" id="block-url">
             <label class="form-label">🔗 Article URL</label>
             <input type="url" name="url" value="{{ prefill_url or form.url.data or '' }}" class="form-input" placeholder="Insert article URL" />
-            <p class="fs-09rem c-white-60 mt-05">Paste a single public URL. We’ll fetch the content.</p>
+            <p class="fs-09rem c-white-60 mt-05">Paste a single public URL. We'll fetch the content.</p>
+            <div class="info-hint mt-05">
+              <span class="info-hint-icon">💡</span>
+              <span class="info-hint-text">Posts are generated from article title & summary. For best results, add your own insights after generation.</span>
+            </div>
           </div>
 
         

@@ -43,7 +43,7 @@
               class="source-list-item {% if not current_source %}source-list-item-active{% endif %}"
             >
               <span class="source-list-name">All Sources</span>
-              <span class="source-list-count">{{ paid_free_counts.free + paid_free_counts.paid }}</span>
+              <span class="source-list-count">{{ source_type_counts.free + source_type_counts.freemium + source_type_counts.paid }}</span>
             </a>
             {% for src in sources %}
             <a 
@@ -52,7 +52,9 @@
             >
               <span class="source-list-name">
                 {{ src.name }}
-                {% if src.is_paid %}<span class="paid-badge-small">Paid</span>{% endif %}
+                {% if src.source_type == 'free' %}<span class="source-type-badge source-type-badge-free">Free</span>{% endif %}
+                {% if src.source_type == 'freemium' %}<span class="source-type-badge source-type-badge-limited">Limited</span>{% endif %}
+                {% if src.source_type == 'paid' %}<span class="source-type-badge source-type-badge-paid">Paid</span>{% endif %}
               </span>
               <span class="source-list-count">{{ src.count }}</span>
             </a>
@@ -64,28 +66,73 @@
       
       <!-- Main content area -->
       <div class="main-content">
-        <!-- Free/Paid filter toggle -->
+        <!-- Beautiful info banner -->
+        <div class="info-banner-modern mb-3">
+          <div class="info-banner-icon-wrap">
+            <span class="info-banner-icon">✨</span>
+          </div>
+          <div class="info-banner-body">
+            <div class="info-banner-title">How it works</div>
+            <div class="info-banner-text">Posts are generated from article headlines and summaries. For best results, read the full article and add your own insights!</div>
+          </div>
+        </div>
+        
+        <!-- Source type filter toggle -->
         <div class="filter-toggle mb-3">
           <div class="filter-toggle-inner">
             <a 
               href="/news/{{ category.slug }}?filter=all{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" 
               class="filter-btn {% if current_filter == 'all' %}filter-btn-active{% endif %}"
             >
-              📰 All News
-              <span class="filter-count">{{ paid_free_counts.free + paid_free_counts.paid }}</span>
+              📰 All
+              <span class="filter-count">{{ source_type_counts.free + source_type_counts.freemium + source_type_counts.paid }}</span>
             </a>
             <a 
               href="/news/{{ category.slug }}?filter=free{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" 
-              class="filter-btn {% if current_filter == 'free' %}filter-btn-active{% endif %}"
+              class="filter-btn filter-btn-free {% if current_filter == 'free' %}filter-btn-active{% endif %}"
             >
-              🆓 Free Only
-              <span class="filter-count">{{ paid_free_counts.free }}</span>
+              ✅ Free
+              <span class="filter-count">{{ source_type_counts.free }}</span>
             </a>
-            {% if paid_free_counts.paid > 0 %}
-            <span class="filter-info">
-              🔒 {{ paid_free_counts.paid }} paid article{{ 's' if paid_free_counts.paid != 1 else '' }} (may require subscription to read)
-            </span>
+            {% if source_type_counts.freemium > 0 %}
+            <a 
+              href="/news/{{ category.slug }}?filter=freemium{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" 
+              class="filter-btn filter-btn-limited {% if current_filter == 'freemium' %}filter-btn-active{% endif %}"
+            >
+              ⚡ Limited
+              <span class="filter-count">{{ source_type_counts.freemium }}</span>
+            </a>
             {% endif %}
+            {% if source_type_counts.paid > 0 %}
+            <a 
+              href="/news/{{ category.slug }}?filter=paid{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" 
+              class="filter-btn filter-btn-paid {% if current_filter == 'paid' %}filter-btn-active{% endif %}"
+            >
+              🔒 Paid
+              <span class="filter-count">{{ source_type_counts.paid }}</span>
+            </a>
+            {% endif %}
+            <!-- Info icon with explanation tooltip -->
+            <div class="source-info-trigger">
+              <span class="source-info-icon">ℹ️</span>
+              <div class="source-info-popup">
+                <div class="source-info-title">About Article Sources</div>
+                <div class="source-info-desc">These labels refer to the <strong>original publisher's</strong> access policy, not LinkerHero:</div>
+                <div class="source-info-item">
+                  <span class="source-info-badge source-info-badge-free">✅ Free</span>
+                  <span>Full article available on publisher's site without signup</span>
+                </div>
+                <div class="source-info-item">
+                  <span class="source-info-badge source-info-badge-limited">⚡ Limited</span>
+                  <span>Publisher offers limited free articles per month (e.g., 3-5/month)</span>
+                </div>
+                <div class="source-info-item">
+                  <span class="source-info-badge source-info-badge-paid">🔒 Paid</span>
+                  <span>Publisher requires subscription to read full article</span>
+                </div>
+                <div class="source-info-note">💡 We generate posts from headlines & summaries only — no paywall content is accessed.</div>
+              </div>
+            </div>
           </div>
         </div>
         
@@ -125,7 +172,7 @@
     {% if articles %}
     <div class="article-grid">
       {% for a in articles %}
-      <div class="article-card {% if a.is_paid %}article-card-paid{% endif %}">
+      <div class="article-card article-card-{{ a.source_type or 'free' }}">
         <div class="article-card-image {% if not a.image_url %}article-card-image-fallback{% endif %}">
           {% if a.image_url %}
           <img src="{{ a.image_url }}" alt="" loading="lazy" />
@@ -134,16 +181,19 @@
             <span class="placeholder-icon">📰</span>
           </div>
           {% endif %}
-          {% if a.is_paid %}
-          <span class="paid-overlay">🔒 Paid</span>
+          {% if a.source_type == 'paid' %}
+          <span class="source-overlay source-overlay-paid">🔒 Paid</span>
+          {% elif a.source_type == 'freemium' %}
+          <span class="source-overlay source-overlay-freemium">⚡ Freemium</span>
           {% endif %}
         </div>
         <div class="article-card-content">
-          <!-- Source badge -->
+          <!-- Source badge with type indicator -->
           {% if a.source_name %}
-          <div class="article-source-badge {% if a.is_paid %}article-source-badge-paid{% endif %}">
+          <div class="article-source-badge article-source-badge-{{ a.source_type or 'free' }}">
             {{ a.source_name }}
-            {% if a.is_paid %}<span class="ml-025">$</span>{% endif %}
+            {% if a.source_type == 'freemium' %}<span class="ml-025">⚡</span>{% endif %}
+            {% if a.source_type == 'paid' %}<span class="ml-025">🔒</span>{% endif %}
           </div>
           {% endif %}
           

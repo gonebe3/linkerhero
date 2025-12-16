@@ -249,6 +249,36 @@ def create_app() -> Flask:
                 removed += 1
         print(f"soft-deleted {removed} articles without image")
 
+    @app.cli.command("rss:backfill_source_type")
+    def rss_backfill_source_type() -> None:
+        """Backfill source_type for existing articles based on feed config."""
+        from .models import Article
+        from .news.feeds_config import get_source_type_for_feed
+        from sqlalchemy import select
+        
+        updated = {"free": 0, "freemium": 0, "paid": 0}
+        
+        with db.session.begin():
+            rows = db.session.execute(
+                select(Article).where(Article.deleted_at.is_(None))
+            ).scalars().all()
+            
+            for article in rows:
+                # Determine source_type from feed config
+                source_type = get_source_type_for_feed(article.source, article.source_name)
+                
+                # Update if different from current
+                if article.source_type != source_type:
+                    article.source_type = source_type
+                    article.is_paid = (source_type == "paid")  # Keep is_paid in sync
+                    updated[source_type] += 1
+        
+        total = sum(updated.values())
+        print(f"Updated {total} articles:")
+        print(f"  - Free: {updated['free']}")
+        print(f"  - Freemium: {updated['freemium']}")
+        print(f"  - Paid: {updated['paid']}")
+
     from .auth.services import ensure_admin
     import click
 

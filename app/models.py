@@ -63,7 +63,8 @@ class Article(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
     source = db.Column(db.String(255), nullable=False)  # Feed URL
     source_name = db.Column(db.String(100), nullable=True, index=True)  # Human-readable source name
-    is_paid = db.Column(db.Boolean, default=False, nullable=False, index=True)  # Paid/paywalled source
+    is_paid = db.Column(db.Boolean, default=False, nullable=False, index=True)  # DEPRECATED: use source_type
+    source_type = db.Column(db.String(20), default="free", nullable=False, index=True)  # 'free', 'freemium', 'paid'
     url = db.Column(db.String(2000), unique=True, index=True, nullable=False)
     title = db.Column(db.String(1000), nullable=False)
     summary = db.Column(Text, nullable=False)
@@ -76,6 +77,16 @@ class Article(db.Model):
     generation_count = db.Column(Integer, default=0, nullable=False, index=True)
 
     generations = db.relationship("Generation", back_populates="article")
+    
+    @property
+    def is_freemium(self) -> bool:
+        """Check if article is from a freemium source."""
+        return self.source_type == "freemium"
+    
+    @property
+    def is_free(self) -> bool:
+        """Check if article is from a fully free source."""
+        return self.source_type == "free"
 
 
 class Category(db.Model):

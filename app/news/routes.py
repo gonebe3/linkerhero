@@ -51,20 +51,28 @@ def category_detail(slug: str):
     if not category:
         abort(404)
     
-    # Parse pagination, search, source filter, and free/paid filter params
+    # Parse pagination, search, source filter, and source type filter params
     page = _safe_int(request.args.get("page"), 1)
     query = request.args.get("q", "").strip()
     source_filter = request.args.get("source", "").strip() or None
-    # Default to showing all (both free and paid), "free" means hide paid
-    show_paid = request.args.get("filter", "all") != "free"
-    current_filter = "free" if not show_paid else "all"
+    
+    # Source type filter: 'all', 'free', 'freemium', 'free_only' (strictly free)
+    current_filter = request.args.get("filter", "all").strip()
+    if current_filter not in ("all", "free", "freemium", "paid", "free_only"):
+        current_filter = "all"
+    
+    # Map filter to source_type_filter for service
+    source_type_filter = None if current_filter == "all" else current_filter
+    
     page_size = 20
     
-    # Get free/paid counts for the filter toggle
+    # Get counts by source type for the filter toggle
+    source_type_counts = ArticleService.get_source_type_counts(slug)
+    # Also get legacy paid_free_counts for backward compat
     paid_free_counts = ArticleService.get_paid_free_counts(slug)
     
-    # Get available sources for this category (for tabs)
-    sources = ArticleService.get_sources_for_category(slug, show_paid=show_paid)
+    # Get available sources for this category (for sidebar)
+    sources = ArticleService.get_sources_for_category(slug, source_type_filter=source_type_filter)
     
     # Get articles (with optional search and source filter)
     if query:
@@ -74,7 +82,7 @@ def category_detail(slug: str):
             page=page,
             page_size=page_size,
             source_filter=source_filter,
-            show_paid=show_paid,
+            source_type_filter=source_type_filter,
         )
     else:
         articles, total_count, total_pages = ArticleService.get_articles_for_category(
@@ -82,7 +90,7 @@ def category_detail(slug: str):
             page=page,
             page_size=page_size,
             source_filter=source_filter,
-            show_paid=show_paid,
+            source_type_filter=source_type_filter,
         )
     
     # Get most generated articles for "Most Popular" section
@@ -95,6 +103,7 @@ def category_detail(slug: str):
         sources=sources,
         current_source=source_filter,
         current_filter=current_filter,
+        source_type_counts=source_type_counts,
         paid_free_counts=paid_free_counts,
         page=page,
         total_pages=total_pages,

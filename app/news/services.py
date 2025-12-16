@@ -126,16 +126,17 @@ class ArticleService:
     """Service for article-related operations."""
     
     @staticmethod
-    def get_sources_for_category(category_slug: str, show_paid: bool = True) -> list[dict]:
+    def get_sources_for_category(category_slug: str, show_paid: bool = True, source_type_filter: str | None = None) -> list[dict]:
         """
         Get all unique sources for articles in a category.
         
         Args:
             category_slug: The category slug
-            show_paid: Whether to include paid sources
+            show_paid: Whether to include paid sources (deprecated, use source_type_filter)
+            source_type_filter: 'free', 'freemium', 'paid', or None for all
             
         Returns:
-            List of dicts with source_name, article_count, and is_paid
+            List of dicts with source_name, article_count, source_type, and is_paid
         """
         with db_session() as s:
             # Get category ID
@@ -146,12 +147,14 @@ class ArticleService:
             if not category:
                 return []
             
-            # Get distinct sources with counts and paid status
+            # Get distinct sources with counts and source_type
+            # Use max() to get the most common source_type for a source
             source_query = (
                 select(
                     Article.source_name,
                     func.count(Article.id).label("count"),
-                    func.bool_or(Article.is_paid).label("is_paid")
+                    func.max(Article.source_type).label("source_type"),
+                    func.bool_or(Article.is_paid).label("is_paid")  # Keep for backward compat
                 )
                 .join(ArticleCategory, Article.id == ArticleCategory.article_id)
                 .where(ArticleCategory.category_id == category.id)
@@ -159,30 +162,38 @@ class ArticleService:
                 .where(Article.source_name.isnot(None))
             )
             
-            # Filter by free/paid if needed
-            if not show_paid:
-                source_query = source_query.where(Article.is_paid == False)
+            # Filter by source_type if specified
+            if source_type_filter:
+                source_query = source_query.where(Article.source_type == source_type_filter)
+            elif not show_paid:
+                # Legacy: filter out paid sources
+                source_query = source_query.where(Article.source_type != "paid")
             
             source_query = source_query.group_by(Article.source_name).order_by(func.count(Article.id).desc())
             
             results = s.execute(source_query).all()
             
             return [
-                {"name": name, "count": count, "is_paid": is_paid or False}
-                for name, count, is_paid in results
+                {
+                    "name": name, 
+                    "count": count, 
+                    "source_type": source_type or "free",
+                    "is_paid": is_paid or False  # Keep for backward compat
+                }
+                for name, count, source_type, is_paid in results
                 if name  # Filter out None/empty names
             ]
     
     @staticmethod
-    def get_paid_free_counts(category_slug: str) -> dict:
+    def get_source_type_counts(category_slug: str) -> dict:
         """
-        Get counts of free vs paid articles in a category.
+        Get counts of articles by source type in a category.
         
         Args:
             category_slug: The category slug
             
         Returns:
-            Dict with 'free' and 'paid' counts
+            Dict with 'free', 'freemium', and 'paid' counts
         """
         with db_session() as s:
             category = s.execute(
@@ -190,27 +201,45 @@ class ArticleService:
             ).scalar_one_or_none()
             
             if not category:
-                return {"free": 0, "paid": 0}
+                return {"free": 0, "freemium": 0, "paid": 0}
             
-            # Count free articles
-            free_count = s.execute(
-                select(func.count(Article.id))
+            # Count by source_type
+            counts_query = (
+                select(Article.source_type, func.count(Article.id))
                 .join(ArticleCategory, Article.id == ArticleCategory.article_id)
                 .where(ArticleCategory.category_id == category.id)
                 .where(Article.deleted_at.is_(None))
-                .where(Article.is_paid == False)
-            ).scalar() or 0
+                .group_by(Article.source_type)
+            )
             
-            # Count paid articles
-            paid_count = s.execute(
-                select(func.count(Article.id))
-                .join(ArticleCategory, Article.id == ArticleCategory.article_id)
-                .where(ArticleCategory.category_id == category.id)
-                .where(Article.deleted_at.is_(None))
-                .where(Article.is_paid == True)
-            ).scalar() or 0
+            results = s.execute(counts_query).all()
+            counts = {row[0]: row[1] for row in results}
             
-            return {"free": free_count, "paid": paid_count}
+            return {
+                "free": counts.get("free", 0),
+                "freemium": counts.get("freemium", 0),
+                "paid": counts.get("paid", 0),
+            }
+    
+    @staticmethod
+    def get_paid_free_counts(category_slug: str) -> dict:
+        """
+        Get counts of free vs paid articles in a category.
+        
+        DEPRECATED: Use get_source_type_counts() instead.
+        Kept for backward compatibility.
+        
+        Args:
+            category_slug: The category slug
+            
+        Returns:
+            Dict with 'free' and 'paid' counts (freemium counted as free)
+        """
+        counts = ArticleService.get_source_type_counts(category_slug)
+        return {
+            "free": counts["free"] + counts["freemium"],  # Count freemium as free for old filter
+            "paid": counts["paid"],
+        }
     
     @staticmethod
     def get_articles_for_category(
@@ -219,6 +248,7 @@ class ArticleService:
         page_size: int = 20,
         source_filter: str | None = None,
         show_paid: bool = True,
+        source_type_filter: str | None = None,
     ) -> Tuple[list[Article], int, int]:
         """
         Return paginated articles for a category.
@@ -228,7 +258,8 @@ class ArticleService:
             page: Page number (1-indexed)
             page_size: Number of articles per page
             source_filter: Optional source name to filter by
-            show_paid: Whether to include paid sources (default True)
+            show_paid: Whether to include paid sources (default True, deprecated)
+            source_type_filter: 'free', 'freemium', 'paid', 'free_only' (free only), or None for all
             
         Returns:
             Tuple of (articles, total_count, total_pages)
@@ -257,18 +288,27 @@ class ArticleService:
             if source_filter:
                 base_query = base_query.where(Article.source_name == source_filter)
             
-            # Filter by free/paid if needed
-            if not show_paid:
-                base_query = base_query.where(Article.is_paid == False)
+            # Filter by source type
+            if source_type_filter == "free_only":
+                # Only free, exclude freemium and paid
+                base_query = base_query.where(Article.source_type == "free")
+            elif source_type_filter in ("free", "freemium", "paid"):
+                base_query = base_query.where(Article.source_type == source_type_filter)
+            elif not show_paid:
+                # Legacy: filter out paid sources (but keep freemium)
+                base_query = base_query.where(Article.source_type != "paid")
             
             # Get total count
             count_query = select(func.count()).select_from(base_query.subquery())
             total_count = s.execute(count_query).scalar() or 0
             
-            # Get paginated articles
+            # Get paginated articles - prioritize those with images
             articles_query = (
                 base_query
-                .order_by(Article.created_at.desc())
+                .order_by(
+                    Article.image_url.isnot(None).desc(),  # Articles with images first
+                    Article.created_at.desc()
+                )
                 .offset(offset)
                 .limit(page_size)
             )
@@ -287,6 +327,7 @@ class ArticleService:
         page_size: int = 20,
         source_filter: str | None = None,
         show_paid: bool = True,
+        source_type_filter: str | None = None,
     ) -> Tuple[list[Article], int, int]:
         """
         Search articles within a category.
@@ -297,7 +338,8 @@ class ArticleService:
             page: Page number (1-indexed)
             page_size: Number of articles per page
             source_filter: Optional source name to filter by
-            show_paid: Whether to include paid sources (default True)
+            show_paid: Whether to include paid sources (default True, deprecated)
+            source_type_filter: 'free', 'freemium', 'paid', 'free_only', or None for all
             
         Returns:
             Tuple of (articles, total_count, total_pages)
@@ -334,18 +376,25 @@ class ArticleService:
             if source_filter:
                 base_query = base_query.where(Article.source_name == source_filter)
             
-            # Filter by free/paid if needed
-            if not show_paid:
-                base_query = base_query.where(Article.is_paid == False)
+            # Filter by source type
+            if source_type_filter == "free_only":
+                base_query = base_query.where(Article.source_type == "free")
+            elif source_type_filter in ("free", "freemium", "paid"):
+                base_query = base_query.where(Article.source_type == source_type_filter)
+            elif not show_paid:
+                base_query = base_query.where(Article.source_type != "paid")
             
             # Get total count
             count_query = select(func.count()).select_from(base_query.subquery())
             total_count = s.execute(count_query).scalar() or 0
             
-            # Get paginated articles
+            # Get paginated articles - prioritize those with images
             articles_query = (
                 base_query
-                .order_by(Article.created_at.desc())
+                .order_by(
+                    Article.image_url.isnot(None).desc(),  # Articles with images first
+                    Article.created_at.desc()
+                )
                 .offset(offset)
                 .limit(page_size)
             )

@@ -8,7 +8,7 @@ This module handles:
 - Saving articles to the database
 
 Includes SSRF protection for URL fetching.
-Skips paid/paywalled sources.
+Classifies sources as free/freemium/paid.
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from sqlalchemy import select
 
 from ..db import db_session
 from ..models import Article, Category, ArticleCategory
-from .feeds_config import CATEGORIES, get_feeds_for_category, get_category_slugs, is_paid_source
+from .feeds_config import CATEGORIES, get_feeds_for_category, get_category_slugs, is_paid_source, get_source_type_for_feed
 from .url_validator import validate_url, is_url_safe
 
 logger = logging.getLogger(__name__)
@@ -244,6 +244,7 @@ async def _fetch_feed_async(
     session: aiohttp.ClientSession,
     feed_url: str,
     source_name: str,
+    source_type: str = "free",
 ) -> list[dict]:
     """
     Fetch and parse a single RSS feed asynchronously.
@@ -252,13 +253,11 @@ async def _fetch_feed_async(
         session: aiohttp session
         feed_url: URL of the RSS feed
         source_name: Human-readable source name
+        source_type: 'free', 'freemium', or 'paid'
         
     Returns:
         List of parsed entries (dicts)
     """
-    # Check if this is a paid source (we'll still fetch but mark articles as paid)
-    is_paid = is_paid_source(feed_url)
-    
     # Validate feed URL (SSRF protection)
     is_valid, error = validate_url(feed_url)
     if not is_valid:
@@ -278,7 +277,7 @@ async def _fetch_feed_async(
                 logger.warning(f"No entries found in feed: {source_name} ({feed_url})")
                 return []
             
-            logger.info(f"Fetched {len(parsed.entries)} entries from {source_name}")
+            logger.info(f"Fetched {len(parsed.entries)} entries from {source_name} ({source_type})")
             
             entries = []
             for entry in parsed.entries[:MAX_ENTRIES_PER_FEED]:
@@ -298,7 +297,8 @@ async def _fetch_feed_async(
                     "image_url": _extract_image_url(entry),
                     "feed_url": feed_url,
                     "source_name": source_name,
-                    "is_paid": is_paid,
+                    "source_type": source_type,
+                    "is_paid": source_type == "paid",  # Keep for backward compatibility
                 })
             
             return entries
@@ -333,9 +333,14 @@ async def _fetch_all_feeds_for_category(category_slug: str) -> list[dict]:
     connector = aiohttp.TCPConnector(limit=10, ssl=False)  # Limit concurrent connections
     
     async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
-        # feeds is now a list of dicts with 'url' and 'name'
+        # feeds is now a list of dicts with 'url', 'name', and 'source_type'
         tasks = [
-            _fetch_feed_async(session, feed["url"], feed["name"]) 
+            _fetch_feed_async(
+                session, 
+                feed["url"], 
+                feed["name"],
+                feed.get("source_type", "free")
+            ) 
             for feed in feeds
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -431,13 +436,15 @@ def _save_entries_to_db(entries: list[dict], category_slug: str) -> int:
             # Get source name from entry and normalize to avoid duplicates
             source_name = _normalize_source_name(entry.get("source_name", "Unknown"))
             
-            # Check if paid source
-            is_paid = entry.get("is_paid", False)
+            # Get source type (free/freemium/paid)
+            source_type = entry.get("source_type", "free")
+            is_paid = source_type == "paid"  # Keep for backward compatibility
             
             # Create article
             article = Article(
                 source=entry.get("feed_url", ""),
                 source_name=source_name,
+                source_type=source_type,
                 is_paid=is_paid,
                 url=link,
                 title=title[:1000],
