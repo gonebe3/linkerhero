@@ -23,6 +23,22 @@ from flask_limiter.util import get_remote_address
 
 bp = Blueprint("gen", __name__, url_prefix="")
 
+
+def _refund_quota(user_id: str, use_gpt: bool) -> None:
+    """Refund one quota unit if generation failed after reservation."""
+    try:
+        with db_session() as s:
+            user = s.execute(
+                select(User).where(User.id == user_id).with_for_update()
+            ).scalar_one_or_none()
+            if user:
+                if use_gpt:
+                    user.quota_gpt_used = max(0, (user.quota_gpt_used or 0) - 1)
+                else:
+                    user.quota_claude_used = max(0, (user.quota_claude_used or 0) - 1)
+    except Exception:
+        pass  # Best effort refund
+
 LENGTH_MIN_CHARS: int = 0
 
 def _detect_language_hint(text: str) -> str | None:
@@ -35,7 +51,7 @@ def _detect_language_hint(text: str) -> str | None:
 def generate_form():
     if not session.get("user_id"):
         # Redirect to login with return path
-        return redirect(url_for("auth.login") + "?next=" + url_for("gen.generate_form"))
+        return redirect(url_for("auth.login", next=request.full_path))
     prefill_url = request.args.get("url", "").strip()
     form = GenerateForm(url=prefill_url)
     return render_template("gen_form_spaceship_v2.html", form=form, prefill_url=prefill_url)
@@ -52,21 +68,78 @@ def generate_form_v2():
 def api_generate():
     form = GenerateForm()
     user_id = session.get("user_id")
-    if user_id:
-        try:
-            with db_session() as s:
-                user = s.get(User, user_id)
-                if user:
-                    left_gpt = max(0, (user.quota_gpt_monthly or 0) - (user.quota_gpt_used or 0))
-                    left_claude = max(0, (user.quota_claude_monthly or 0) - (user.quota_claude_used or 0))
-                    if (left_gpt + left_claude) <= 0:
-                        from flask import flash
-                        if request.headers.get('HX-Request'):
-                            return render_template("gen_results_spaceship.html", variants=[], error="Monthly quota reached. Upgrade your plan or wait for renewal.")
-                        flash("Monthly quota reached. Upgrade your plan or wait for renewal.", "error")
-                        return redirect(url_for("main.dashboard"))
-        except Exception:
-            pass
+    
+    # Require login for generation
+    if not user_id:
+        if request.headers.get('HX-Request'):
+            return render_template("gen_results_spaceship.html", variants=[], error="Please log in to generate posts.")
+        from flask import flash
+        flash("Please log in to generate posts.", "error")
+        return redirect(url_for("auth.login", next=request.full_path))
+    
+    # Determine which model will be used (needed for quota check)
+    model_choice = (form.model.data or "claude").strip().lower()
+    use_gpt = model_choice in {"gpt", "gpt5", "openai", "chatgpt", "gpt-5"}
+    
+    # Atomic quota check and reservation using SELECT FOR UPDATE
+    # This prevents race conditions where multiple requests pass quota check simultaneously
+    try:
+        with db_session() as s:
+            # Lock the user row to prevent concurrent modifications
+            user = s.execute(
+                select(User).where(User.id == user_id).with_for_update()
+            ).scalar_one_or_none()
+            
+            if not user:
+                if request.headers.get('HX-Request'):
+                    return render_template("gen_results_spaceship.html", variants=[], error="User not found. Please log in again.")
+                from flask import flash
+                flash("User not found. Please log in again.", "error")
+                return redirect(url_for("auth.login"))
+            
+            # Calculate remaining quota
+            left_gpt = max(0, (user.quota_gpt_monthly or 0) - (user.quota_gpt_used or 0))
+            left_claude = max(0, (user.quota_claude_monthly or 0) - (user.quota_claude_used or 0))
+            
+            # Check if user has any quota left
+            if (left_gpt + left_claude) <= 0:
+                if request.headers.get('HX-Request'):
+                    return render_template("gen_results_spaceship.html", variants=[], error="Monthly quota reached. Upgrade your plan or wait for renewal.")
+                from flask import flash
+                flash("Monthly quota reached. Upgrade your plan or wait for renewal.", "error")
+                return redirect(url_for("main.dashboard"))
+            
+            # Check specific model quota
+            if use_gpt and left_gpt <= 0:
+                if request.headers.get('HX-Request'):
+                    return render_template("gen_results_spaceship.html", variants=[], error="GPT quota reached. Try Claude instead or upgrade your plan.")
+                from flask import flash
+                flash("GPT quota reached. Try Claude instead or upgrade your plan.", "error")
+                return redirect(url_for("gen.generate_form"))
+            
+            if not use_gpt and left_claude <= 0:
+                if request.headers.get('HX-Request'):
+                    return render_template("gen_results_spaceship.html", variants=[], error="Claude quota reached. Try GPT instead or upgrade your plan.")
+                from flask import flash
+                flash("Claude quota reached. Try GPT instead or upgrade your plan.", "error")
+                return redirect(url_for("gen.generate_form"))
+            
+            # Reserve quota NOW before generation (prevents race condition)
+            if use_gpt:
+                user.quota_gpt_used = (user.quota_gpt_used or 0) + 1
+            else:
+                user.quota_claude_used = (user.quota_claude_used or 0) + 1
+            # Commit happens automatically at end of db_session context
+    except Exception as e:
+        if request.headers.get('HX-Request'):
+            return render_template("gen_results_spaceship.html", variants=[], error="Error checking quota. Please try again.")
+        from flask import flash
+        flash("Error checking quota. Please try again.", "error")
+        return redirect(url_for("gen.generate_form"))
+    
+    # Track if generation succeeds (for potential quota refund on failure)
+    generation_succeeded = False
+    
     url = (form.url.data or "").strip()
     article_id = ""  # legacy, removed from UI
     persona = form.persona.data or "PM"
@@ -243,41 +316,62 @@ def api_generate():
         )
     # If the model responded with our sentinel indicating insufficient grounding, return error
     if variants and isinstance(variants[0], str) and variants[0].strip().upper() == "INSUFFICIENT_SOURCE":
+        # Refund the reserved quota since generation failed
+        _refund_quota(user_id, use_gpt)
         if request.headers.get('HX-Request'):
-            return render_template("gen_results_spaceship.html", variants=[], error="The uploaded content doesn’t have enough usable text to write a grounded post. Please upload a richer file or paste more text.")
+            return render_template("gen_results_spaceship.html", variants=[], error="The uploaded content doesn't have enough usable text to write a grounded post. Please upload a richer file or paste more text.")
         from flask import flash
         flash("Not enough usable text to generate a grounded post. Try a richer source.", "error")
+        return redirect(url_for("gen.generate_form"))
+    
+    # If no variants were generated at all, refund quota
+    if not variants:
+        _refund_quota(user_id, use_gpt)
+        if request.headers.get('HX-Request'):
+            return render_template("gen_results_spaceship.html", variants=[], error="Failed to generate content. Please try again.")
+        from flask import flash
+        flash("Failed to generate content. Please try again.", "error")
         return redirect(url_for("gen.generate_form"))
 
     # MVP: no scoring; just pass strings to template
     results = variants
+    
+    # Mark generation as successful (quota was already reserved)
+    generation_succeeded = True
 
-    # Persist only if a user is logged in
+    # Persist the generated drafts
     gen_rows: list[tuple[str, str]] = []
-    if user_id:
-        with db_session() as s:
+    with db_session() as s:
+        for v in results:
+            g = Generation(
+                user_id=user_id,
+                article_id=(selected_article.id if selected_article else None),
+                model=("gpt-5" if use_gpt else "claude-3-5-sonnet-20240620"),
+                prompt=f"persona={persona}, tone={tone}, hook_type={hook_type}",
+                draft_text=v,
+                persona=persona,
+                tone=tone,
+            )
+            s.add(g)
+            s.flush()
+            gen_rows.append((g.id, v))
+        # Note: Quota was already incremented atomically at the start
+        # If we generated more than 1 variant, we need to add the extra usage
+        extra_generations = len(results) - 1
+        if extra_generations > 0:
             user = s.get(User, user_id)
-            for v in results:
-                g = Generation(
-                    user_id=user_id,
-                    article_id=(selected_article.id if selected_article else None),
-                    model=("gpt-5" if model_choice in {"gpt", "gpt5", "openai", "chatgpt", "gpt-5"} else "claude-3-5-sonnet-20240620"),
-                    prompt=f"persona={persona}, tone={tone}, hook_type={hook_type}",
-                    draft_text=v,
-                    persona=persona,
-                    tone=tone,
-                )
-                s.add(g)
-                s.flush()
-                gen_rows.append((g.id, v))
-            # Increment quota usage counters based on selected provider
             if user:
-                if model_choice in {"gpt", "gpt5", "openai", "chatgpt", "gpt-5"}:
-                    user.quota_gpt_used = (user.quota_gpt_used or 0) + len(results)
+                if use_gpt:
+                    user.quota_gpt_used = (user.quota_gpt_used or 0) + extra_generations
                 else:
-                    user.quota_claude_used = (user.quota_claude_used or 0) + len(results)
+                    user.quota_claude_used = (user.quota_claude_used or 0) + extra_generations
+        
+        # Increment generation_count for the article if it was used
+        if selected_article:
+            article_to_update = s.get(Article, selected_article.id)
+            if article_to_update:
+                article_to_update.generation_count = (article_to_update.generation_count or 0) + 1
 
-    # If not logged in, still render text; share buttons require login
     if not gen_rows:
         gen_rows = [("", v) for v in results]
 

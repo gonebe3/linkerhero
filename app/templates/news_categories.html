@@ -2,9 +2,85 @@
 {% block content %}
 <div class="container pt-6rem">
   <div class="section">
+    <!-- Hero Section with Value Proposition -->
     <div class="text-center mb-6">
-      <h1 class="fs-25rem fw-800 mb-1rem c-white">Choose News Category</h1>
-      <p class="fs-12rem c-white-80">Select a topic to discover the latest articles and generate LinkedIn posts</p>
+      <h1 class="hero-headline">Transform Emerging News into Professional LinkedIn Posts</h1>
+      <p class="hero-tagline">Stay ahead with curated content from best sources — turn insights into engagement</p>
+      
+      <!-- Modern 3-Step Flow with Animation -->
+      <div class="hero-steps" id="heroSteps">
+        <div class="hero-step hero-step-animated" data-step="1">
+          <div class="hero-step-number">
+            <span class="hero-step-number-text">1</span>
+            <svg class="hero-step-check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+            </svg>
+          </div>
+          <div class="hero-step-content">
+            <div class="hero-step-title">Pick Your Topic</div>
+            <div class="hero-step-desc">Choose from curated categories</div>
+          </div>
+        </div>
+        
+        <div class="hero-step-arrow hero-step-arrow-animated" data-arrow="1">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M13.172 12l-4.95-4.95 1.414-1.414L16 12l-6.364 6.364-1.414-1.414z"/>
+          </svg>
+        </div>
+        
+        <div class="hero-step hero-step-animated" data-step="2">
+          <div class="hero-step-number">
+            <span class="hero-step-number-text">2</span>
+            <svg class="hero-step-check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+            </svg>
+          </div>
+          <div class="hero-step-content">
+            <div class="hero-step-title">Select an Article</div>
+            <div class="hero-step-desc">From best sources</div>
+          </div>
+        </div>
+        
+        <div class="hero-step-arrow hero-step-arrow-animated" data-arrow="2">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M13.172 12l-4.95-4.95 1.414-1.414L16 12l-6.364 6.364-1.414-1.414z"/>
+          </svg>
+        </div>
+        
+        <div class="hero-step hero-step-animated" data-step="3">
+          <div class="hero-step-number">
+            <span class="hero-step-number-text">3</span>
+            <svg class="hero-step-check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+            </svg>
+          </div>
+          <div class="hero-step-content">
+            <div class="hero-step-title">Generate Your Post</div>
+            <div class="hero-step-desc">Professional content instantly</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Benefit Badges -->
+      <div class="flex gap-1 justify-center flex-wrap mb-2 mt-3">
+        <div class="benefit-badge">
+          <span class="benefit-badge__icon">🔥</span>
+          <span class="benefit-badge__text">Updated Daily</span>
+        </div>
+        <div class="benefit-badge">
+          <span class="benefit-badge__icon">⚡</span>
+          <span class="benefit-badge__text">1-Click Generation</span>
+        </div>
+        <div class="benefit-badge">
+          <span class="benefit-badge__icon">📈</span>
+          <span class="benefit-badge__text">Trending Topics</span>
+        </div>
+      </div>
+      
+      <!-- Quick Stats -->
+      {% if total_articles %}
+      <p class="hero-stats">{{ '{:,}'.format(total_articles) }} articles curated from best sources</p>
+      {% endif %}
     </div>
     
     <div class="category-grid">
@@ -12,6 +88,7 @@
       <a href="/news/{{ cat.slug }}" class="category-card">
         <div class="category-card__bg" style="background-image: url('{{ cat.image }}')"></div>
         <div class="category-card__overlay"></div>
+        
         <div class="category-card__content">
           <span class="category-card__name">{{ cat.name }}</span>
           {% if cat.article_count > 0 %}
@@ -39,5 +116,53 @@
     {% endif %}
   </div>
 </div>
-{% endblock %}
 
+<script>
+  // Animate hero steps with sliding carousel effect
+  document.addEventListener('DOMContentLoaded', function() {
+    const stepsContainer = document.getElementById('heroSteps');
+    const steps = document.querySelectorAll('.hero-step-animated');
+    const arrows = document.querySelectorAll('.hero-step-arrow-animated');
+    
+    // Make all visible initially
+    steps.forEach(step => step.classList.add('hero-step-visible'));
+    arrows.forEach(arrow => arrow.classList.add('hero-step-arrow-visible'));
+    
+    // Continuous sliding carousel animation
+    let currentIndex = 0;
+    
+    function animateSteps() {
+      // Reset all
+      steps.forEach(step => {
+        step.classList.remove('hero-step-slide-active', 'hero-step-slide-left', 'hero-step-slide-right');
+      });
+      
+      arrows.forEach(arrow => {
+        arrow.classList.remove('hero-arrow-active');
+      });
+      
+      // Set positions
+      steps.forEach((step, index) => {
+        if (index === currentIndex) {
+          step.classList.add('hero-step-slide-active');
+          if (arrows[index]) {
+            arrows[index].classList.add('hero-arrow-active');
+          }
+        } else if (index < currentIndex) {
+          step.classList.add('hero-step-slide-left');
+        } else {
+          step.classList.add('hero-step-slide-right');
+        }
+      });
+      
+      currentIndex = (currentIndex + 1) % steps.length;
+    }
+    
+    // Initial animation
+    setTimeout(animateSteps, 500);
+    
+    // Loop every 3 seconds
+    setInterval(animateSteps, 3000);
+  });
+</script>
+{% endblock %}

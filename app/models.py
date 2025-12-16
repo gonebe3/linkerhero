@@ -61,7 +61,9 @@ class Article(db.Model):
     __tablename__ = "articles"
 
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
-    source = db.Column(db.String(255), nullable=False)
+    source = db.Column(db.String(255), nullable=False)  # Feed URL
+    source_name = db.Column(db.String(100), nullable=True, index=True)  # Human-readable source name
+    is_paid = db.Column(db.Boolean, default=False, nullable=False, index=True)  # Paid/paywalled source
     url = db.Column(db.String(2000), unique=True, index=True, nullable=False)
     title = db.Column(db.String(1000), nullable=False)
     summary = db.Column(Text, nullable=False)
@@ -71,6 +73,7 @@ class Article(db.Model):
     created_at = db.Column(DateTime(timezone=True), server_default=func.now(), index=True, nullable=False)
     updated_at = db.Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), index=True, nullable=False)
     deleted_at = db.Column(DateTime(timezone=True), nullable=True, index=True)
+    generation_count = db.Column(Integer, default=0, nullable=False, index=True)
 
     generations = db.relationship("Generation", back_populates="article")
 
@@ -81,6 +84,7 @@ class Category(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
     name = db.Column(db.String(100), unique=True, index=True, nullable=False)
     slug = db.Column(db.String(120), unique=True, index=True, nullable=False)
+    image_path = db.Column(db.String(500), nullable=True)  # Path to category image
     created_at = db.Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = db.Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 

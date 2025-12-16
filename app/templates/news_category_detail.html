@@ -11,103 +11,133 @@
       <p class="c-white-60">{{ total_count }} article{{ 's' if total_count != 1 else '' }} available</p>
     </div>
     
-    <!-- Free/Paid filter toggle -->
-    <div class="filter-toggle mb-3">
-      <div class="filter-toggle-inner">
-        <a 
-          href="/news/{{ category.slug }}?filter=all{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" 
-          class="filter-btn {% if current_filter == 'all' %}filter-btn-active{% endif %}"
-        >
-          📰 All News
-          <span class="filter-count">{{ paid_free_counts.free + paid_free_counts.paid }}</span>
-        </a>
-        <a 
-          href="/news/{{ category.slug }}?filter=free{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" 
-          class="filter-btn {% if current_filter == 'free' %}filter-btn-active{% endif %}"
-        >
-          🆓 Free Only
-          <span class="filter-count">{{ paid_free_counts.free }}</span>
-        </a>
-        {% if paid_free_counts.paid > 0 %}
-        <span class="filter-info">
-          🔒 {{ paid_free_counts.paid }} paid article{{ 's' if paid_free_counts.paid != 1 else '' }} (may require subscription)
-        </span>
-        {% endif %}
+    <!-- Most Generated Section (only shows if users have generated from articles) -->
+    {% if most_generated_articles %}
+    <div class="trending-section">
+      <div class="trending-section__header">
+        <span class="trending-section__icon">⭐</span>
+        <h2 class="trending-section__title">Most Popular</h2>
+        <span class="fs-09rem c-white-60 ml-1">(Generated {{ most_generated_articles[0].generation_count }}+ times)</span>
       </div>
-    </div>
-    
-    <!-- Source filter tabs -->
-    {% if sources %}
-    <div class="source-tabs mb-3">
-      <div class="source-tabs-inner">
-        <a 
-          href="/news/{{ category.slug }}?filter={{ current_filter }}{% if query %}&q={{ query|urlencode }}{% endif %}" 
-          class="source-tab {% if not current_source %}source-tab-active{% endif %}"
-        >
-          All Sources
-        </a>
-        {% for src in sources %}
-        <a 
-          href="/news/{{ category.slug }}?source={{ src.name|urlencode }}&filter={{ current_filter }}{% if query %}&q={{ query|urlencode }}{% endif %}" 
-          class="source-tab {% if current_source == src.name %}source-tab-active{% endif %}"
-        >
-          {{ src.name }}
-          {% if src.is_paid %}<span class="paid-badge">$</span>{% endif %}
-          <span class="source-tab-count">{{ src.count }}</span>
+      <div class="flex gap-1 flex-wrap">
+        {% for article in most_generated_articles %}
+        <a href="/generate?url={{ article.url|urlencode }}" class="btn btn-secondary" style="flex: 1 1 auto; min-width: 200px; text-align: left; padding: 12px 16px;">
+          <div class="fs-09rem fw-600 c-white mb-025">{{ article.title|truncate(60) }}</div>
+          <div class="fs-075rem c-white-60">{{ article.source_name or 'Unknown Source' }} • Generated {{ article.generation_count }}x</div>
         </a>
         {% endfor %}
       </div>
     </div>
     {% endif %}
     
-    <!-- Search bar -->
-    <div class="card mb-3">
-      <form method="get" action="/news/{{ category.slug }}" class="flex gap-1 items-end flex-wrap">
-        {% if current_source %}
-        <input type="hidden" name="source" value="{{ current_source }}" />
-        {% endif %}
-        <input type="hidden" name="filter" value="{{ current_filter }}" />
-        <div class="form-group flex-1 mb-0">
-          <label class="form-label">🔍 Search Articles</label>
-          <input 
-            type="text" 
-            name="q" 
-            value="{{ query }}" 
-            class="form-input" 
-            placeholder="Search by title or content..." 
-          />
+    <!-- Two-column layout: Main content + Sidebar -->
+    <div class="content-with-sidebar">
+      <!-- Sidebar with sources (LEFT SIDE) -->
+      {% if sources %}
+      <div class="sidebar">
+        <div class="card">
+          <h3 class="c-white fw-700 fs-1rem mb-2">Filter by Source</h3>
+          <div class="source-list-vertical">
+            <a 
+              href="/news/{{ category.slug }}?filter={{ current_filter }}{% if query %}&q={{ query|urlencode }}{% endif %}" 
+              class="source-list-item {% if not current_source %}source-list-item-active{% endif %}"
+            >
+              <span class="source-list-name">All Sources</span>
+              <span class="source-list-count">{{ paid_free_counts.free + paid_free_counts.paid }}</span>
+            </a>
+            {% for src in sources %}
+            <a 
+              href="/news/{{ category.slug }}?source={{ src.name|urlencode }}&filter={{ current_filter }}{% if query %}&q={{ query|urlencode }}{% endif %}" 
+              class="source-list-item {% if current_source == src.name %}source-list-item-active{% endif %}"
+            >
+              <span class="source-list-name">
+                {{ src.name }}
+                {% if src.is_paid %}<span class="paid-badge-small">Paid</span>{% endif %}
+              </span>
+              <span class="source-list-count">{{ src.count }}</span>
+            </a>
+            {% endfor %}
+          </div>
         </div>
-        <button type="submit" class="btn h-fit">Search</button>
-        {% if query or current_source or current_filter == 'free' %}
-        <a href="/news/{{ category.slug }}" class="btn btn-secondary h-fit">Clear All</a>
-        {% endif %}
-        {% if session.get('user_id') %}
-        <button 
-          hx-post="/api/news/refresh/{{ category.slug }}" 
-          hx-swap="none"
-          hx-on::after-request="if(event.detail.successful) location.reload()"
-          type="button" 
-          class="btn btn-secondary h-fit"
-        >
-          🔄 Refresh
-        </button>
-        {% endif %}
-      </form>
-    </div>
+      </div>
+      {% endif %}
+      
+      <!-- Main content area -->
+      <div class="main-content">
+        <!-- Free/Paid filter toggle -->
+        <div class="filter-toggle mb-3">
+          <div class="filter-toggle-inner">
+            <a 
+              href="/news/{{ category.slug }}?filter=all{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" 
+              class="filter-btn {% if current_filter == 'all' %}filter-btn-active{% endif %}"
+            >
+              📰 All News
+              <span class="filter-count">{{ paid_free_counts.free + paid_free_counts.paid }}</span>
+            </a>
+            <a 
+              href="/news/{{ category.slug }}?filter=free{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" 
+              class="filter-btn {% if current_filter == 'free' %}filter-btn-active{% endif %}"
+            >
+              🆓 Free Only
+              <span class="filter-count">{{ paid_free_counts.free }}</span>
+            </a>
+            {% if paid_free_counts.paid > 0 %}
+            <span class="filter-info">
+              🔒 {{ paid_free_counts.paid }} paid article{{ 's' if paid_free_counts.paid != 1 else '' }} (may require subscription to read)
+            </span>
+            {% endif %}
+          </div>
+        </div>
+        
+        <!-- Search bar -->
+        <div class="card mb-3">
+          <form method="get" action="/news/{{ category.slug }}" class="search-form-centered">
+            {% if current_source %}
+            <input type="hidden" name="source" value="{{ current_source }}" />
+            {% endif %}
+            <input type="hidden" name="filter" value="{{ current_filter }}" />
+            <div class="form-group mb-0 flex-1">
+              <label class="form-label">🔍 Search Articles</label>
+              <input 
+                type="text" 
+                name="q" 
+                value="{{ query }}" 
+                class="form-input" 
+                placeholder="Search by title or content..." 
+              />
+            </div>
+            <button type="submit" class="btn search-btn">Search</button>
+            {% if session.get('user_id') %}
+            <button 
+              hx-post="/api/news/refresh/{{ category.slug }}" 
+              hx-swap="none"
+              hx-on::after-request="if(event.detail.successful) location.reload()"
+              type="button" 
+              class="btn btn-secondary"
+            >
+              🔄 Refresh
+            </button>
+            {% endif %}
+          </form>
+        </div>
     
     <!-- Articles list -->
     {% if articles %}
     <div class="article-grid">
       {% for a in articles %}
       <div class="article-card {% if a.is_paid %}article-card-paid{% endif %}">
-        {% if a.image_url %}
-        <div class="article-card-image">
+        <div class="article-card-image {% if not a.image_url %}article-card-image-fallback{% endif %}">
+          {% if a.image_url %}
           <img src="{{ a.image_url }}" alt="" loading="lazy" />
+          {% else %}
+          <div class="article-card-image-placeholder">
+            <span class="placeholder-icon">📰</span>
+          </div>
+          {% endif %}
           {% if a.is_paid %}
           <span class="paid-overlay">🔒 Paid</span>
           {% endif %}
         </div>
-        {% endif %}
         <div class="article-card-content">
           <!-- Source badge -->
           {% if a.source_name %}
@@ -138,8 +168,8 @@
               </div>
               {% endif %}
             </div>
-            <a href="/generate?url={{ a.url|urlencode }}" class="btn btn-cta btn-sm">
-              ✨ Generate
+            <a href="/generate?url={{ a.url|urlencode }}" class="btn btn-cta-enhanced btn-sm">
+              ✨ Write Post About This
             </a>
           </div>
         </div>
@@ -200,6 +230,8 @@
       {% endif %}
     </div>
     {% endif %}
-  </div>
+      </div> <!-- End main-content -->
+    </div> <!-- End content-with-sidebar -->
+  </div> <!-- End section -->
 </div>
 {% endblock %}

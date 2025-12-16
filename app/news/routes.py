@@ -1,138 +1,203 @@
+"""
+News routes - handles category selection and article browsing.
+
+Routes:
+- GET /news - Category selection page (8 cards)
+- GET /news/<slug> - Articles for specific category
+- POST /api/news/refresh/<slug> - Refresh feeds for one category (admin only)
+"""
 from __future__ import annotations
 
-from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
-import re
-from sqlalchemy import select
+from flask import Blueprint, abort, jsonify, redirect, render_template, request, session, url_for
 
 from ..db import db_session
-from ..models import Article, User, Category, ArticleCategory, UserNewsPreference
-from .rss import refresh_feeds, extract_url
+from ..models import User
+from .services import CategoryService, ArticleService
+from .feeds_config import get_category_by_slug as get_category_config
 
 bp = Blueprint("news", __name__, url_prefix="")
 
 
-def _extract_img_from_html(summary: str) -> str | None:
-    if not summary:
-        return None
+def _safe_int(value, default: int = 1) -> int:
+    """Safely parse an integer from request args."""
     try:
-        # Look for <img ... src="...">
-        m = re.search(r"<img[^>]+src=\"([^\"]+)\"", summary, flags=re.IGNORECASE)
-        if m:
-            return m.group(1)
-        # Sometimes data-src is used
-        m = re.search(r"<img[^>]+data-src=\"([^\"]+)\"", summary, flags=re.IGNORECASE)
-        if m:
-            return m.group(1)
-    except Exception:
-        return None
-    return None
-
-
-def _backfill_article_images(articles: list[Article]) -> None:
-    # Best-effort: if an article has no image_url but summary contains <img>, persist it
-    if not articles:
-        return
-    with db_session() as s:
-        for a in articles:
-            if not getattr(a, "image_url", None) and getattr(a, "summary", None):
-                url = _extract_img_from_html(a.summary)
-                if url:
-                    # persist
-                    obj = s.get(Article, a.id)
-                    if obj:
-                        obj.image_url = url
+        return max(1, int(value))
+    except (ValueError, TypeError):
+        return default
 
 
 @bp.route("/news")
-def news_board():
-    page = int(request.args.get("page", 1))
-    q = request.args.get("q", "").strip().lower()
+def news_categories():
+    """
+    Category selection page - displays all 8 categories as cards.
+    
+    User clicks a category to see articles in that category.
+    """
+    categories = CategoryService.get_all_categories()
+    total_articles = ArticleService.get_total_article_count()
+    return render_template("news_categories.html", categories=categories, total_articles=total_articles)
+
+
+@bp.route("/news/<slug>")
+def category_detail(slug: str):
+    """
+    Display articles for a specific category with pagination.
+    
+    Args:
+        slug: Category slug (e.g., 'technology-ai-software')
+    """
+    # Validate category exists
+    category = CategoryService.get_category_by_slug(slug)
+    if not category:
+        abort(404)
+    
+    # Parse pagination, search, source filter, and free/paid filter params
+    page = _safe_int(request.args.get("page"), 1)
+    query = request.args.get("q", "").strip()
+    source_filter = request.args.get("source", "").strip() or None
+    # Default to showing all (both free and paid), "free" means hide paid
+    show_paid = request.args.get("filter", "all") != "free"
+    current_filter = "free" if not show_paid else "all"
     page_size = 20
-    # Support both ?categories=slug,slug2 and repeated ?categories=slug params
-    selected_list = request.args.getlist("categories")
-    if selected_list:
-        selected_slugs = [s for s in selected_list if s]
-    else:
-        selected = request.args.get("categories", "").strip()
-        selected_slugs = [s for s in selected.split(",") if s]
-    with db_session() as s:
-        # base articles: only those with images
-        stmt = (
-            select(Article)
-            .where(Article.deleted_at.is_(None))
-            .where(Article.image_url.isnot(None))
-            .order_by(Article.created_at.desc())
+    
+    # Get free/paid counts for the filter toggle
+    paid_free_counts = ArticleService.get_paid_free_counts(slug)
+    
+    # Get available sources for this category (for tabs)
+    sources = ArticleService.get_sources_for_category(slug, show_paid=show_paid)
+    
+    # Get articles (with optional search and source filter)
+    if query:
+        articles, total_count, total_pages = ArticleService.search_articles_in_category(
+            category_slug=slug,
+            query=query,
+            page=page,
+            page_size=page_size,
+            source_filter=source_filter,
+            show_paid=show_paid,
         )
-        articles = s.execute(stmt).scalars().all()
-        # categories for UI
-        cats = s.execute(select(Category).order_by(Category.name.asc())).scalars().all()
-        # filter by query
-        if q:
-            articles = [a for a in articles if q in (a.title.lower() + " " + a.summary.lower())]
-        # filter by categories
-        if selected_slugs:
-            # find article ids that have any of selected categories
-            cat_ids = [c.id for c in cats if c.slug in selected_slugs]
-            if cat_ids:
-                art_ids = set(
-                    rid for rid, in s.execute(
-                        select(ArticleCategory.article_id).where(ArticleCategory.category_id.in_(cat_ids))
-                    )
-                )
-                articles = [a for a in articles if a.id in art_ids]
-    start = (page - 1) * page_size
-    end = start + page_size
-    page_articles = articles[start:end]
-
-    # Best-effort backfill of missing images for visible page
-    _backfill_article_images(page_articles)
-
+    else:
+        articles, total_count, total_pages = ArticleService.get_articles_for_category(
+            category_slug=slug,
+            page=page,
+            page_size=page_size,
+            source_filter=source_filter,
+            show_paid=show_paid,
+        )
+    
+    # Get most generated articles for "Most Popular" section
+    most_generated_articles = ArticleService.get_most_generated_articles(slug)
+    
     return render_template(
-        "news_board_spaceship.html",
-        articles=page_articles,
+        "news_category_detail.html",
+        category=category,
+        articles=articles,
+        sources=sources,
+        current_source=source_filter,
+        current_filter=current_filter,
+        paid_free_counts=paid_free_counts,
         page=page,
-        q=q,
-        categories=cats,
-        selected_slugs=selected_slugs,
+        total_pages=total_pages,
+        total_count=total_count,
+        query=query,
+        most_generated_articles=most_generated_articles,
     )
 
 
 @bp.route("/api/news/refresh", methods=["POST"])
-def news_refresh():
+def news_refresh_all():
+    """
+    Refresh all RSS feeds (admin only).
+    
+    This triggers a refresh of all category feeds.
+    """
     user_id = session.get("user_id")
     if not user_id:
         return redirect(url_for("auth.login"))
+    
     with db_session() as s:
         user = s.get(User, user_id)
         if not user or user.plan != "admin":
             return ("forbidden", 403)
-    refresh_feeds()
-    return jsonify({"status": "ok"})
+    
+    # Import here to avoid circular imports
+    from .rss import refresh_all_feeds
+    
+    try:
+        count = refresh_all_feeds()
+        return jsonify({"status": "ok", "articles_added": count})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@bp.route("/api/news/refresh/<slug>", methods=["POST"])
+def news_refresh_category(slug: str):
+    """
+    Refresh RSS feeds for a specific category (admin only).
+    
+    Args:
+        slug: Category slug to refresh
+    """
+    user_id = session.get("user_id")
+    if not user_id:
+        return redirect(url_for("auth.login"))
+    
+    with db_session() as s:
+        user = s.get(User, user_id)
+        if not user or user.plan != "admin":
+            return ("forbidden", 403)
+    
+    # Validate category exists
+    category_config = get_category_config(slug)
+    if not category_config:
+        return jsonify({"status": "error", "message": "Category not found"}), 404
+    
+    # Import here to avoid circular imports
+    from .rss import refresh_category_feeds
+    
+    try:
+        count = refresh_category_feeds(slug)
+        return jsonify({"status": "ok", "category": slug, "articles_added": count})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @bp.route("/api/news/preferences", methods=["POST"])
 def save_news_preferences():
+    """Save user's preferred news categories (for future personalization)."""
+    from ..models import UserNewsPreference
+    from sqlalchemy import select
+    
     user_id = session.get("user_id")
     if not user_id:
         return ("unauthorized", 401)
+    
     slugs = request.json.get("slugs", []) if request.is_json else request.form.get("slugs", "").split(",")
     slugs = [s for s in slugs if s]
+    
     with db_session() as s:
-        pref = s.execute(select(UserNewsPreference).where(UserNewsPreference.user_id == user_id)).scalar_one_or_none()
+        pref = s.execute(
+            select(UserNewsPreference).where(UserNewsPreference.user_id == user_id)
+        ).scalar_one_or_none()
+        
         payload = {"slugs": slugs}
         if pref is None:
             pref = UserNewsPreference(user_id=user_id, categories=payload)
             s.add(pref)
         else:
             pref.categories = payload
+    
     return jsonify({"ok": True})
 
 
 @bp.route("/api/extract")
 async def api_extract():
+    """Extract content from a URL (for generation preview)."""
+    from .rss import extract_url
+    
     url = request.args.get("url", "")
     if not url:
         return jsonify({"error": "url required"}), 400
+    
     data = await extract_url(url)
     return jsonify(data)
-
