@@ -1,0 +1,205 @@
+{% extends 'base_spaceship.html' %}
+{% block content %}
+<div class="container pt-6rem">
+  <div class="section">
+    <!-- Header with back link -->
+    <div class="mb-3">
+      <a href="/news" class="c-white-60 hover-c-white text-decoration-none mb-1 inline-block">
+        ← Back to Categories
+      </a>
+      <h1 class="fs-2rem fw-800 mb-05 c-white">{{ category.name }}</h1>
+      <p class="c-white-60">{{ total_count }} article{{ 's' if total_count != 1 else '' }} available</p>
+    </div>
+    
+    <!-- Free/Paid filter toggle -->
+    <div class="filter-toggle mb-3">
+      <div class="filter-toggle-inner">
+        <a 
+          href="/news/{{ category.slug }}?filter=all{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" 
+          class="filter-btn {% if current_filter == 'all' %}filter-btn-active{% endif %}"
+        >
+          📰 All News
+          <span class="filter-count">{{ paid_free_counts.free + paid_free_counts.paid }}</span>
+        </a>
+        <a 
+          href="/news/{{ category.slug }}?filter=free{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" 
+          class="filter-btn {% if current_filter == 'free' %}filter-btn-active{% endif %}"
+        >
+          🆓 Free Only
+          <span class="filter-count">{{ paid_free_counts.free }}</span>
+        </a>
+        {% if paid_free_counts.paid > 0 %}
+        <span class="filter-info">
+          🔒 {{ paid_free_counts.paid }} paid article{{ 's' if paid_free_counts.paid != 1 else '' }} (may require subscription)
+        </span>
+        {% endif %}
+      </div>
+    </div>
+    
+    <!-- Source filter tabs -->
+    {% if sources %}
+    <div class="source-tabs mb-3">
+      <div class="source-tabs-inner">
+        <a 
+          href="/news/{{ category.slug }}?filter={{ current_filter }}{% if query %}&q={{ query|urlencode }}{% endif %}" 
+          class="source-tab {% if not current_source %}source-tab-active{% endif %}"
+        >
+          All Sources
+        </a>
+        {% for src in sources %}
+        <a 
+          href="/news/{{ category.slug }}?source={{ src.name|urlencode }}&filter={{ current_filter }}{% if query %}&q={{ query|urlencode }}{% endif %}" 
+          class="source-tab {% if current_source == src.name %}source-tab-active{% endif %}"
+        >
+          {{ src.name }}
+          {% if src.is_paid %}<span class="paid-badge">$</span>{% endif %}
+          <span class="source-tab-count">{{ src.count }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    
+    <!-- Search bar -->
+    <div class="card mb-3">
+      <form method="get" action="/news/{{ category.slug }}" class="flex gap-1 items-end flex-wrap">
+        {% if current_source %}
+        <input type="hidden" name="source" value="{{ current_source }}" />
+        {% endif %}
+        <input type="hidden" name="filter" value="{{ current_filter }}" />
+        <div class="form-group flex-1 mb-0">
+          <label class="form-label">🔍 Search Articles</label>
+          <input 
+            type="text" 
+            name="q" 
+            value="{{ query }}" 
+            class="form-input" 
+            placeholder="Search by title or content..." 
+          />
+        </div>
+        <button type="submit" class="btn h-fit">Search</button>
+        {% if query or current_source or current_filter == 'free' %}
+        <a href="/news/{{ category.slug }}" class="btn btn-secondary h-fit">Clear All</a>
+        {% endif %}
+        {% if session.get('user_id') %}
+        <button 
+          hx-post="/api/news/refresh/{{ category.slug }}" 
+          hx-swap="none"
+          hx-on::after-request="if(event.detail.successful) location.reload()"
+          type="button" 
+          class="btn btn-secondary h-fit"
+        >
+          🔄 Refresh
+        </button>
+        {% endif %}
+      </form>
+    </div>
+    
+    <!-- Articles list -->
+    {% if articles %}
+    <div class="article-grid">
+      {% for a in articles %}
+      <div class="article-card {% if a.is_paid %}article-card-paid{% endif %}">
+        {% if a.image_url %}
+        <div class="article-card-image">
+          <img src="{{ a.image_url }}" alt="" loading="lazy" />
+          {% if a.is_paid %}
+          <span class="paid-overlay">🔒 Paid</span>
+          {% endif %}
+        </div>
+        {% endif %}
+        <div class="article-card-content">
+          <!-- Source badge -->
+          {% if a.source_name %}
+          <div class="article-source-badge {% if a.is_paid %}article-source-badge-paid{% endif %}">
+            {{ a.source_name }}
+            {% if a.is_paid %}<span class="ml-025">$</span>{% endif %}
+          </div>
+          {% endif %}
+          
+          <h3 class="article-card-title">
+            <a href="{{ a.url }}" target="_blank" rel="noopener">{{ a.title }}</a>
+          </h3>
+          
+          <p class="article-card-summary">
+            {{ a.summary|striptags|truncate(180, True, '...') }}
+          </p>
+          
+          <div class="article-card-footer">
+            <div class="article-card-meta">
+              <span class="article-card-date">
+                {{ a.created_at.strftime('%b %d, %Y') }}
+              </span>
+              {% if a.topics %}
+              <div class="article-card-topics">
+                {% for topic in (a.topics|dictsort|map(attribute=0)|list)[:2] %}
+                <span class="article-topic-tag">{{ topic }}</span>
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+            <a href="/generate?url={{ a.url|urlencode }}" class="btn btn-cta btn-sm">
+              ✨ Generate
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <div class="pagination mt-4">
+      <div class="flex gap-05 justify-center items-center flex-wrap">
+        {% if page > 1 %}
+        <a href="/news/{{ category.slug }}?page={{ page - 1 }}&filter={{ current_filter }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" class="btn btn-secondary px-12 py-06">
+          ← Previous
+        </a>
+        {% endif %}
+        
+        <span class="c-white-60 px-1">
+          Page {{ page }} of {{ total_pages }}
+        </span>
+        
+        {% if page < total_pages %}
+        <a href="/news/{{ category.slug }}?page={{ page + 1 }}&filter={{ current_filter }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" class="btn btn-secondary px-12 py-06">
+          Next →
+        </a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+    
+    {% else %}
+    <!-- Empty state -->
+    <div class="card text-center py-6">
+      <div class="fs-4rem mb-1rem">📭</div>
+      <h3 class="c-white mb-1rem">No articles found</h3>
+      <p class="c-white-80 mb-2">
+        {% if query %}
+        No articles match your search "{{ query }}". Try a different search term.
+        {% elif current_source %}
+        No articles from "{{ current_source }}" yet.
+        {% elif current_filter == 'free' %}
+        No free articles available. Try showing all news.
+        {% else %}
+        No articles have been fetched yet for this category.
+        {% endif %}
+      </p>
+      {% if query or current_source or current_filter == 'free' %}
+      <a href="/news/{{ category.slug }}" class="btn btn-secondary">Clear Filters</a>
+      {% elif session.get('user_id') %}
+      <button 
+        hx-post="/api/news/refresh/{{ category.slug }}" 
+        hx-swap="none"
+        hx-on::after-request="if(event.detail.successful) location.reload()"
+        class="btn btn-cta"
+      >
+        🔄 Fetch Articles Now
+      </button>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
