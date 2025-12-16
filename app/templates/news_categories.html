@@ -1,0 +1,43 @@
+{% extends 'base_spaceship.html' %}
+{% block content %}
+<div class="container pt-6rem">
+  <div class="section">
+    <div class="text-center mb-6">
+      <h1 class="fs-25rem fw-800 mb-1rem c-white">Choose News Category</h1>
+      <p class="fs-12rem c-white-80">Select a topic to discover the latest articles and generate LinkedIn posts</p>
+    </div>
+    
+    <div class="category-grid">
+      {% for cat in categories %}
+      <a href="/news/{{ cat.slug }}" class="category-card">
+        <div class="category-card__bg" style="background-image: url('{{ cat.image }}')"></div>
+        <div class="category-card__overlay"></div>
+        <div class="category-card__content">
+          <span class="category-card__name">{{ cat.name }}</span>
+          {% if cat.article_count > 0 %}
+          <span class="category-card__count">{{ cat.article_count }} article{{ 's' if cat.article_count != 1 else '' }}</span>
+          {% endif %}
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    
+    {% if session.get('user_id') %}
+    <div class="text-center mt-4">
+      <p class="c-white-60 mb-1">Admin tools</p>
+      <button 
+        hx-post="/api/news/refresh" 
+        hx-swap="none"
+        hx-indicator="#refresh-spinner"
+        hx-on::after-request="if(event.detail.successful) alert('Feeds refreshed successfully!')"
+        class="btn btn-secondary"
+      >
+        <span id="refresh-spinner" class="htmx-indicator">Refreshing...</span>
+        <span class="htmx-hide-on-request">🔄 Refresh All Feeds</span>
+      </button>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
