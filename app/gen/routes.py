@@ -341,36 +341,45 @@ def api_generate():
 
     # Persist the generated drafts
     gen_rows: list[tuple[str, str]] = []
-    with db_session() as s:
-        for v in results:
-            g = Generation(
-                user_id=user_id,
-                article_id=(selected_article.id if selected_article else None),
-                model=("gpt-5" if use_gpt else "claude-3-5-sonnet-20240620"),
-                prompt=f"persona={persona}, tone={tone}, hook_type={hook_type}",
-                draft_text=v,
-                persona=persona,
-                tone=tone,
-            )
-            s.add(g)
-            s.flush()
-            gen_rows.append((g.id, v))
-        # Note: Quota was already incremented atomically at the start
-        # If we generated more than 1 variant, we need to add the extra usage
-        extra_generations = len(results) - 1
-        if extra_generations > 0:
-            user = s.get(User, user_id)
-            if user:
-                if use_gpt:
-                    user.quota_gpt_used = (user.quota_gpt_used or 0) + extra_generations
-                else:
-                    user.quota_claude_used = (user.quota_claude_used or 0) + extra_generations
-        
-        # Increment generation_count for the article if it was used
-        if selected_article:
-            article_to_update = s.get(Article, selected_article.id)
-            if article_to_update:
-                article_to_update.generation_count = (article_to_update.generation_count or 0) + 1
+    try:
+        with db_session() as s:
+            for v in results:
+                g = Generation(
+                    user_id=user_id,
+                    article_id=(selected_article.id if selected_article else None),
+                    model=("gpt-5" if use_gpt else "claude-3-5-sonnet-20240620"),
+                    prompt=f"persona={persona}, tone={tone}, hook_type={hook_type}",
+                    draft_text=v,
+                    persona=persona,
+                    tone=tone,
+                )
+                s.add(g)
+                s.flush()
+                gen_rows.append((g.id, v))
+            # Note: Quota was already incremented atomically at the start
+            # If we generated more than 1 variant, we need to add the extra usage
+            extra_generations = len(results) - 1
+            if extra_generations > 0:
+                user = s.get(User, user_id)
+                if user:
+                    if use_gpt:
+                        user.quota_gpt_used = (user.quota_gpt_used or 0) + extra_generations
+                    else:
+                        user.quota_claude_used = (user.quota_claude_used or 0) + extra_generations
+            
+            # Increment generation_count for the article if it was used
+            if selected_article:
+                article_to_update = s.get(Article, selected_article.id)
+                if article_to_update:
+                    article_to_update.generation_count = (article_to_update.generation_count or 0) + 1
+    except Exception as e:
+        # Database error during persistence - refund the reserved quota
+        _refund_quota(user_id, use_gpt)
+        if request.headers.get('HX-Request'):
+            return render_template("gen_results_spaceship.html", variants=[], error="Failed to save generated content. Please try again.")
+        from flask import flash
+        flash("Failed to save generated content. Please try again.", "error")
+        return redirect(url_for("gen.generate_form"))
 
     if not gen_rows:
         gen_rows = [("", v) for v in results]

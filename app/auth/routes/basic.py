@@ -118,7 +118,8 @@ def register():
 def login():
     if request.method == "GET":
         pre = request.args.get("email", "").strip()
-        return render_template("auth_login_spaceship.html", sent=False, prefill_email=pre)
+        next_param = request.args.get("next", "").strip()
+        return render_template("auth_login_spaceship.html", sent=False, prefill_email=pre, next_param=next_param)
     email = request.form.get("email", "").strip().lower()
     if not email:
         flash("Email required", "error")
@@ -242,5 +243,6 @@ def login_password():
         ip = request.headers.get("X-Forwarded-For", request.remote_addr)
         now = datetime.now(timezone.utc)
         session_db.add(UserSession(user_id=user.id, user_agent=ua, ip_address=ip, created_at=now, last_seen_at=now))
-    return redirect(url_for("main.index"))
+    next_url = request.form.get("next") or url_for("main.index")
+    return redirect(next_url)
 

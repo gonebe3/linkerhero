@@ -24,7 +24,7 @@
           </div>
         </div>
 
-          <div class="form-group hidden" id="block-url">
+          <div class="form-group {% if mode != 'url' %}hidden{% endif %}" id="block-url">
             <label class="form-label">🔗 Article URL</label>
             <input type="url" name="url" value="{{ prefill_url or form.url.data or '' }}" class="form-input" placeholder="Insert article URL" />
             <p class="fs-09rem c-white-60 mt-05">Paste a single public URL. We’ll fetch the content.</p>
@@ -32,13 +32,13 @@
 
         
 
-          <div class="form-group hidden" id="block-text">
+          <div class="form-group {% if mode != 'text' %}hidden{% endif %}" id="block-text">
             <label class="form-label">✍️ Write/Paste Text</label>
             <textarea name="text" rows="6" class="form-textarea" placeholder="Insert your text here">{{ form.text.data or '' }}</textarea>
             <p class="fs-09rem c-white-60 mt-05">Provide exactly one source: Text, URL, or File.</p>
           </div>
 
-          <div class="form-group hidden" id="block-file">
+          <div class="form-group {% if mode != 'file' %}hidden{% endif %}" id="block-file">
             <label class="form-label">📄 Upload File</label>
             <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-label="Upload file by clicking or dragging">
               <input type="file" name="file" id="file_input" hidden accept=".txt,.pdf,.docx" />
@@ -148,16 +148,33 @@
             const textEl = form.querySelector('textarea[name="text"]');
             if (urlEl) { urlEl.value = ''; }
             if (textEl) { textEl.value = ''; }
-            if (fileInput) { fileInput.value = ''; filePreview.style.display='none'; filePreview.textContent=''; }
+            if (fileInput) { 
+              fileInput.value = ''; 
+              if (filePreview) {
+                filePreview.classList.add('hidden');
+                filePreview.textContent = '';
+              }
+            }
           }
 
           function setMode(mode){
             const prev = sourceMode.value;
             sourceMode.value = mode;
             if (prev && prev !== mode) { clearSources(); }
-            blockUrl.style.display = mode === 'url' ? '' : 'none';
-            blockText.style.display = mode === 'text' ? '' : 'none';
-            blockFile.style.display = mode === 'file' ? '' : 'none';
+            
+            // Helper to toggle visibility
+            const toggle = (el, show) => {
+              if (!el) return;
+              // Clear inline display style if any, relying on classes
+              el.style.display = '';
+              if (show) el.classList.remove('hidden');
+              else el.classList.add('hidden');
+            };
+
+            toggle(blockUrl, mode === 'url');
+            toggle(blockText, mode === 'text');
+            toggle(blockFile, mode === 'file');
+
             const urlEl = form.querySelector('input[name="url"]');
             const textEl = form.querySelector('textarea[name="text"]');
             const fileEl = document.getElementById('file_input');
@@ -185,7 +202,7 @@
               return;
             }
             filePreview.textContent = 'Selected: ' + f.name + ' (' + Math.round(f.size/1024/1024*10)/10 + ' MB)';
-            filePreview.style.display = '';
+            filePreview.classList.remove('hidden');
           }
           if (dropzone) {
             dropzone.addEventListener('click', function(){ setMode('file'); openPicker(); });
@@ -250,7 +267,7 @@
                   textArea.value = text.slice(0, 8000);
                   fileInput.value = '';
                   filePreview.textContent = 'Extracted ' + text.length + ' characters to Text.';
-                  filePreview.style.display = '';
+                  filePreview.classList.remove('hidden');
                 }
               } catch(_) { /* no-op, allow normal submit */ }
             });

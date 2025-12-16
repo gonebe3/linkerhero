@@ -218,12 +218,22 @@ def create_app() -> Flask:
         session.execute(text("SELECT 1"))
         print("ok")
 
-    from .news.rss import refresh_feeds
+    from .news.rss import refresh_all_feeds, refresh_category_feeds
+    from .news.services import CategoryService
 
     @app.cli.command("rss:refresh")
-    def rss_refresh() -> None:
-        refresh_feeds()
-        print("ingested")
+    @click.option("--category", "-c", default=None, help="Category slug to refresh (or all if not specified)")
+    def rss_refresh(category: str | None) -> None:
+        """Refresh RSS feeds and ingest new articles."""
+        # Ensure all categories exist in DB first
+        CategoryService.ensure_categories_exist()
+        
+        if category:
+            count = refresh_category_feeds(category)
+            print(f"Ingested {count} articles for category: {category}")
+        else:
+            count = refresh_all_feeds()
+            print(f"Ingested {count} articles across all categories")
 
     @app.cli.command("rss:purge_no_image")
     def rss_purge_no_image() -> None:

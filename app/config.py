@@ -118,3 +118,7 @@ class Config:
     GOOGLE_CLIENT_SECRET: str | None = os.getenv("GOOGLE_CLIENT_SECRET")
     GOOGLE_SCOPES: str = os.getenv("GOOGLE_SCOPES", "openid email profile")
 
+    # Celery configuration (for background tasks)
+    CELERY_BROKER_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    CELERY_RESULT_BACKEND: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+

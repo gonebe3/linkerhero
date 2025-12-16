@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="225" viewBox="0 0 400 225">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#16213e;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="400" height="225" fill="url(#bg)"/>
+  <text x="200" y="100" text-anchor="middle" fill="#ff6f4e" font-family="system-ui, -apple-system, sans-serif" font-size="48" font-weight="700">LH</text>
+  <text x="200" y="140" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="500">LinkerHero News</text>
+</svg>
+
+
+
+
+
+
+
+

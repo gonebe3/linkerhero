@@ -83,6 +83,16 @@
       {% endif %}
     </div>
     
+    <!-- Category Selection Section -->
+    <div class="category-section-header">
+      <h2 class="category-section-title">👇 Choose Your Topic</h2>
+      <div class="category-section-arrow">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 16l-6-6h12l-6 6z"/>
+        </svg>
+      </div>
+    </div>
+    
     <div class="category-grid">
       {% for cat in categories %}
       <a href="/news/{{ cat.slug }}" class="category-card">

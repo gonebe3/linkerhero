@@ -11,6 +11,9 @@
       <!-- Password first (default) -->
       <form method="post" action="/login_password">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        {% if next_param %}
+        <input type="hidden" name="next" value="{{ next_param }}" />
+        {% endif %}
 
         {% if error %}
         <div class="error mb-1">{{ error }}</div>
