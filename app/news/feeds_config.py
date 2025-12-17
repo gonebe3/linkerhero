@@ -148,6 +148,7 @@ CATEGORIES: dict[str, CategoryConfig] = {
             {"url": "https://getlighthouse.com/blog/feed/", "name": "Get Lighthouse", "source_type": "free"},
             {"url": "https://www.smartbrief.com/originals/leadership/feed", "name": "SmartBrief Leadership", "source_type": "free"},
             {"url": "http://feeds.feedburner.com/entrepreneur/latest", "name": "Entrepreneur", "source_type": "free"},
+            {"url": "https://news.crunchbase.com/feed/", "name": "Crunchbase News", "source_type": "free"},
         ],
     },
     "people-hr-future-of-work": {
@@ -195,16 +196,10 @@ CATEGORIES: dict[str, CategoryConfig] = {
         "slug": "product-ux-design",
         "image": "/static/images/categories/design.jpg",
         "feeds": [
-            # === FREE SOURCES ===
-            {"url": "https://uxplanet.org/feed", "name": "UX Planet", "source_type": "free"},
-            {"url": "https://productcoalition.com/feed", "name": "Product Coalition", "source_type": "free"},
-            {"url": "https://feeds2.feedburner.com/webdesignerdepot", "name": "Webdesigner Depot", "source_type": "free"},
-            {"url": "https://www.designweek.co.uk/feed/", "name": "Design Week", "source_type": "free"},
-            {"url": "https://www.wired.com/feed/category/ideas/latest/rss", "name": "Wired Ideas", "source_type": "free"},
             {"url": "https://www.smashingmagazine.com/feed/", "name": "Smashing Magazine", "source_type": "free"},
-            {"url": "https://uxdesign.cc/feed", "name": "UX Collective", "source_type": "free"},
             {"url": "https://www.creativebloq.com/feed", "name": "Creative Bloq", "source_type": "free"},
-            {"url": "https://alistapart.com/main/feed/", "name": "A List Apart", "source_type": "free"},
+            {"url": "https://www.designweek.co.uk/feed/", "name": "Design Week", "source_type": "free"},
+            {"url": "https://feeds2.feedburner.com/webdesignerdepot", "name": "Webdesigner Depot", "source_type": "free"},
         ],
     },
     "startups-entrepreneurship-vc": {
@@ -212,10 +207,8 @@ CATEGORIES: dict[str, CategoryConfig] = {
         "slug": "startups-entrepreneurship-vc",
         "image": "/static/images/categories/startups.jpg",
         "feeds": [
-            # === FREE SOURCES ===
             {"url": "https://techcrunch.com/category/startups/feed/", "name": "TechCrunch Startups", "source_type": "free"},
             {"url": "https://news.crunchbase.com/feed/", "name": "Crunchbase News", "source_type": "free"},
-            {"url": "https://www.eu-startups.com/feed/", "name": "EU-Startups", "source_type": "free"},
             {"url": "https://www.saastr.com/feed/", "name": "SaaStr", "source_type": "free"},
             {"url": "http://tomtunguz.com/index.xml", "name": "Tomasz Tunguz", "source_type": "free"},
             {"url": "https://bothsidesofthetable.com/feed", "name": "Both Sides of the Table", "source_type": "free"},
@@ -227,16 +220,12 @@ CATEGORIES: dict[str, CategoryConfig] = {
         "slug": "markets-investing-fintech",
         "image": "/static/images/categories/markets.jpg",
         "feeds": [
-            # === FREE SOURCES ===
-            {"url": "https://www.cnbc.com/id/100003114/device/rss/rss.html", "name": "CNBC Markets", "source_type": "free"},
+            {"url": "https://finance.yahoo.com/news/rssindex", "name": "Yahoo Finance", "source_type": "free"},
             {"url": "https://www.investing.com/rss/news.rss", "name": "Investing.com", "source_type": "free"},
-            {"url": "http://finance.yahoo.com/rss/topstories", "name": "Yahoo Finance", "source_type": "free"},
             {"url": "https://www.finextra.com/rss/headlines.aspx", "name": "Finextra", "source_type": "free"},
             {"url": "https://www.pymnts.com/feed/", "name": "PYMNTS", "source_type": "free"},
-            # === FREEMIUM SOURCES ===
-            {"url": "https://www.marketwatch.com/rss/topstories", "name": "MarketWatch", "source_type": "freemium"},
-            # === PAID SOURCES (removed - content is blocked) ===
-            # Bloomberg, WSJ, FT - require subscription
+            {"url": "http://www.valuewalk.com/feed/", "name": "ValueWalk", "source_type": "free"},
+            {"url": "http://www.bankingexchange.com/index.php/news-feed?format=feed", "name": "Banking Exchange", "source_type": "free"},
         ],
     },
 }
