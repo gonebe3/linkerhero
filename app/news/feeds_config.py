@@ -57,17 +57,17 @@ FREEMIUM_DOMAINS = {
 # Default placeholder images for sources without article images
 # You can replace these with your own hosted logos
 SOURCE_LOGOS: dict[str, str] = {
-    # Business
-    "Harvard Business Review": "/static/images/logos/hbr.png",
+    # Business, Economy & Geopolitics
     "Entrepreneur": "/static/images/logos/entrepreneur.png",
-    "Inc.": "/static/images/logos/inc.png",
-    "Wired Business": "/static/images/logos/wired.png",
-    "Fortune": "/static/images/logos/fortune.png",
-    "NY Times Business": "/static/images/logos/nyt.png",
-    # Leadership
-    "Fast Company": "/static/images/logos/fastcompany.png",
-    "Let's Grow Leaders": "/static/images/logos/default.png",
-    "MIT Sloan Management Review": "/static/images/logos/mit.png",
+    "Yahoo Finance": "/static/images/logos/yahoo.png",
+    "Business Insider": "/static/images/logos/businessinsider.png",
+    "International Business Times": "/static/images/logos/ibt.png",
+    "BBC Economy": "/static/images/logos/bbc.png",
+    "Politico": "/static/images/logos/politico.png",
+    "NPR": "/static/images/logos/npr.png",
+    # Leadership, Management & Careers
+    "Get Lighthouse": "/static/images/logos/lighthouse.png",
+    "SmartBrief Leadership": "/static/images/logos/smartbrief.png",
     # HR
     "HR Bartender": "/static/images/logos/default.png",
     "HR Dive": "/static/images/logos/hrdive.png",
@@ -131,20 +131,13 @@ CATEGORIES: dict[str, CategoryConfig] = {
         "slug": "business-economy-geopolitics",
         "image": "/static/images/categories/business.jpg",
         "feeds": [
-            # === FREE SOURCES (fully accessible) ===
             {"url": "http://feeds.feedburner.com/entrepreneur/latest", "name": "Entrepreneur", "source_type": "free"},
-            {"url": "https://www.wired.com/feed/category/business/latest/rss", "name": "Wired Business", "source_type": "freemium"},
-            {"url": "http://feeds.bbci.co.uk/news/business/rss.xml", "name": "BBC Business", "source_type": "free"},
-            {"url": "https://www.cnbc.com/id/100003114/device/rss/rss.html", "name": "CNBC", "source_type": "free"},
-            {"url": "https://www.theguardian.com/business/rss", "name": "The Guardian Business", "source_type": "free"},
-            {"url": "https://feeds.npr.org/1006/rss.xml", "name": "NPR Business", "source_type": "free"},
-            {"url": "https://theconversation.com/us/business/articles.atom", "name": "The Conversation Business", "source_type": "free"},
-            # === FREEMIUM SOURCES (limited free articles) ===
-            {"url": "http://feeds.harvardbusiness.org/harvardbusiness/", "name": "Harvard Business Review", "source_type": "freemium"},
-            {"url": "http://www.inc.com/rss/homepage.xml", "name": "Inc.", "source_type": "freemium"},
-            {"url": "http://fortune.com/feed/", "name": "Fortune", "source_type": "freemium"},
-            # === PAID SOURCES (subscription required - excluded from generation) ===
-            # Removed: NY Times, WSJ, Bloomberg, FT - paywalled content
+            {"url": "https://finance.yahoo.com/news/rssindex", "name": "Yahoo Finance", "source_type": "free"},
+            {"url": "http://feeds2.feedburner.com/businessinsider", "name": "Business Insider", "source_type": "free"},
+            {"url": "https://www.ibtimes.com.au/rss", "name": "International Business Times", "source_type": "free"},
+            {"url": "http://feeds.bbci.co.uk/news/business/economy/rss.xml", "name": "BBC Economy", "source_type": "free"},
+            {"url": "https://rss.politico.com/politics-news.xml", "name": "Politico", "source_type": "free"},
+            {"url": "http://www.npr.org/rss/rss.php?id=93559255", "name": "NPR", "source_type": "free"},
         ],
     },
     "leadership-management-careers": {
@@ -152,13 +145,9 @@ CATEGORIES: dict[str, CategoryConfig] = {
         "slug": "leadership-management-careers",
         "image": "/static/images/categories/leadership.jpg",
         "feeds": [
-            # === FREE SOURCES ===
-            {"url": "https://www.fastcompany.com/leadership/rss", "name": "Fast Company", "source_type": "free"},
-            {"url": "http://letsgrowleaders.com/feed/", "name": "Let's Grow Leaders", "source_type": "free"},
-            {"url": "https://hbswk.hbs.edu/rss/rss.xml", "name": "HBS Working Knowledge", "source_type": "free"},
-            # === FREEMIUM SOURCES ===
-            {"url": "http://feeds.harvardbusiness.org/managementtip", "name": "Harvard Business Review", "source_type": "freemium"},
-            {"url": "http://feeds.feedburner.com/mitsmr", "name": "MIT Sloan Management Review", "source_type": "freemium"},
+            {"url": "https://getlighthouse.com/blog/feed/", "name": "Get Lighthouse", "source_type": "free"},
+            {"url": "https://www.smartbrief.com/originals/leadership/feed", "name": "SmartBrief Leadership", "source_type": "free"},
+            {"url": "http://feeds.feedburner.com/entrepreneur/latest", "name": "Entrepreneur", "source_type": "free"},
         ],
     },
     "people-hr-future-of-work": {
@@ -182,18 +171,10 @@ CATEGORIES: dict[str, CategoryConfig] = {
         "slug": "marketing-brand-growth",
         "image": "/static/images/categories/marketing.jpg",
         "feeds": [
-            # === FREE SOURCES ===
             {"url": "https://www.marketingdive.com/feeds/news/", "name": "Marketing Dive", "source_type": "free"},
-            {"url": "https://www.socialmediatoday.com/rss.xml", "name": "Social Media Today", "source_type": "free"},
             {"url": "https://searchengineland.com/feed/", "name": "Search Engine Land", "source_type": "free"},
-            {"url": "https://www.searchenginejournal.com/feed/", "name": "Search Engine Journal", "source_type": "free"},
             {"url": "https://blog.hubspot.com/marketing/rss.xml", "name": "HubSpot Marketing", "source_type": "free"},
-            {"url": "https://contentmarketinginstitute.com/feed/", "name": "Content Marketing Institute", "source_type": "free"},
-            {"url": "https://moz.com/blog/feed", "name": "Moz Blog", "source_type": "free"},
-            {"url": "https://neilpatel.com/blog/feed/", "name": "Neil Patel", "source_type": "free"},
-            # === FREEMIUM SOURCES ===
-            {"url": "https://www.adweek.com/feed/", "name": "Adweek", "source_type": "freemium"},
-            {"url": "https://www.dmnews.com/feed/", "name": "DM News", "source_type": "freemium"},
+            {"url": "https://www.dmnews.com/feed/", "name": "DM News", "source_type": "free"},
         ],
     },
     "technology-ai-software": {
@@ -201,17 +182,12 @@ CATEGORIES: dict[str, CategoryConfig] = {
         "slug": "technology-ai-software",
         "image": "/static/images/categories/technology.jpg",
         "feeds": [
-            # === FREE SOURCES ===
             {"url": "https://techcrunch.com/feed/", "name": "TechCrunch", "source_type": "free"},
             {"url": "https://venturebeat.com/feed/", "name": "VentureBeat", "source_type": "free"},
             {"url": "https://feeds.feedburner.com/TheHackersNews", "name": "The Hacker News", "source_type": "free"},
-            {"url": "https://www.theverge.com/rss/index.xml", "name": "The Verge", "source_type": "free"},
-            {"url": "https://www.wired.com/feed/tag/ai/latest/rss", "name": "Wired AI", "source_type": "free"},
-            {"url": "https://www.theguardian.com/uk/technology/rss", "name": "The Guardian Tech", "source_type": "free"},
             {"url": "https://openai.com/news/rss.xml", "name": "OpenAI", "source_type": "free"},
-            {"url": "https://www.wired.com/feed/category/security/latest/rss", "name": "Wired Security", "source_type": "free"},
-            {"url": "https://arstechnica.com/feed/", "name": "Ars Technica", "source_type": "free"},
-            {"url": "https://www.zdnet.com/news/rss.xml", "name": "ZDNet", "source_type": "free"},
+            {"url": "http://googleblog.blogspot.com/atom.xml", "name": "Google Blog", "source_type": "free"},
+            {"url": "https://www.digitaltrends.com/computing/feed/", "name": "Digital Trends", "source_type": "free"},
         ],
     },
     "product-ux-design": {

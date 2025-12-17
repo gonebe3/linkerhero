@@ -25,8 +25,37 @@ from ..db import db_session
 from ..models import Article, Category, ArticleCategory
 from .feeds_config import CATEGORIES, get_feeds_for_category, get_category_slugs, is_paid_source, get_source_type_for_feed
 from .url_validator import validate_url, is_url_safe
+from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_url(url: str) -> str:
+    """
+    Normalize URL for deduplication by removing tracking parameters.
+    
+    Strips common UTM and tracking query params, trailing slashes.
+    """
+    try:
+        parsed = urlparse(url)
+        # Remove common tracking params
+        tracking_params = {'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+                          'ref', 'source', 'fbclid', 'gclid', 'mc_cid', 'mc_eid'}
+        query_params = parse_qs(parsed.query)
+        filtered_params = {k: v for k, v in query_params.items() if k.lower() not in tracking_params}
+        new_query = urlencode(filtered_params, doseq=True) if filtered_params else ''
+        # Rebuild URL without tracking params, strip trailing slash
+        normalized = urlunparse((
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path.rstrip('/'),
+            parsed.params,
+            new_query,
+            ''  # Remove fragment
+        ))
+        return normalized
+    except Exception:
+        return url
 
 # Timeout for individual feed fetches
 FEED_TIMEOUT_SECONDS = 20
@@ -94,19 +123,24 @@ def _extract_image_url(entry: Any) -> Optional[str]:
     import re
     
     def extract_img_from_html(html_content: str) -> Optional[str]:
-        """Extract first image URL from HTML content."""
+        """Extract first usable image URL from HTML content."""
         import html as html_module
         if not html_content:
             return None
-        # Look for img src (also check srcset)
-        img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', html_content, re.IGNORECASE)
-        if img_match:
-            url = img_match.group(1)
+        
+        # URLs to skip (tracking, CTA buttons, tiny images)
+        skip_patterns = ['pixel', 'tracking', '1x1', '/cta/', 'no-cache.hubspot.com/cta']
+        
+        # Find ALL images in the HTML
+        img_matches = re.findall(r'<img[^>]+src=["\']([^"\']+)["\']', html_content, re.IGNORECASE)
+        for url in img_matches:
             # Unescape HTML entities (e.g., &#038; -> &)
             url = html_module.unescape(url)
-            # Skip tracking pixels and tiny images
-            if 'pixel' not in url.lower() and 'tracking' not in url.lower() and '1x1' not in url:
-                return url
+            # Skip unwanted images
+            if any(skip in url.lower() for skip in skip_patterns):
+                continue
+            # Found a good image
+            return url
         # Also check for figure > img or picture > source
         figure_match = re.search(r'<figure[^>]*>.*?<img[^>]+src=["\']([^"\']+)["\']', html_content, re.IGNORECASE | re.DOTALL)
         if figure_match:
@@ -395,16 +429,17 @@ def _save_entries_to_db(entries: list[dict], category_slug: str) -> int:
             s.flush()
             logger.info(f"Created category: {config['name']}")
         
-        # Get existing URLs to avoid duplicates
+        # Get existing URLs to avoid duplicates (normalized for comparison)
         existing_urls = set(
-            url for url, in s.execute(select(Article.url)).all()
+            _normalize_url(url) for url, in s.execute(select(Article.url)).all()
         )
         
         for entry in entries:
             link = entry["link"]
+            normalized_link = _normalize_url(link)
             
-            # Skip if already exists
-            if link in existing_urls:
+            # Skip if already exists (using normalized URL)
+            if normalized_link in existing_urls:
                 skipped_duplicate += 1
                 continue
             
@@ -463,7 +498,7 @@ def _save_entries_to_db(entries: list[dict], category_slug: str) -> int:
             )
             s.add(article_category)
             
-            existing_urls.add(link)
+            existing_urls.add(normalized_link)
             added_count += 1
     
     logger.info(f"Category {category_slug}: Added {added_count}, Duplicates skipped: {skipped_duplicate}, No title: {skipped_no_title}")

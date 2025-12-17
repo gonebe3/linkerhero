@@ -51,3 +51,5 @@ def downgrade():
     op.drop_index('ix_articles_source_type', table_name='articles')
     op.drop_column('articles', 'source_type')
 
+
+
