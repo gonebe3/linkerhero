@@ -3,66 +3,104 @@
 <div class="container pt-6rem">
   <div class="section">
     <div class="text-center mb-6">
-      <h1 class="fs-25rem fw-800 mb-1rem c-white">📰 Latest Articles</h1>
-      <p class="fs-12rem c-white-80">Fresh content from top tech and business sources</p>
+      <h1 class="fs-25rem fw-800 mb-1rem c-white">Your content ideas</h1>
+      <p class="fs-12rem c-white-80">Browse fresh articles from your topics and turn any of them into a LinkedIn post in one click.</p>
     </div>
+
+    {% if (selected_categories or []) %}
+    <div class="news-topics-bar mb-3">
+      <div class="news-topics-pills">
+        {% for c in selected_categories %}
+        <a
+          href="/news?cat={{ c.slug }}"
+          class="topic-pill {% if active_cat == c.slug %}topic-pill-active{% endif %}"
+        >
+          {{ c.name }}
+        </a>
+        {% endfor %}
+        {% if active_cat %}
+        <a href="/news" class="topic-clear">Clear</a>
+        {% endif %}
+      </div>
+      <div class="news-topics-cta">
+        <a href="/news/topics" class="btn btn-cta">Edit topics</a>
+      </div>
+    </div>
+    {% else %}
+    <div class="flex justify-center mb-3">
+      <a href="/news/topics" class="btn btn-cta">Edit topics</a>
+    </div>
+    {% endif %}
     
     <div class="card mb-3rem">
       <form method="get" action="/news" class="flex gap-1 items-end flex-wrap">
+        {% if active_cat %}
+        <input type="hidden" name="cat" value="{{ active_cat }}" />
+        {% endif %}
         <div class="form-group flex-1 mb-0">
           <label class="form-label">🔍 Search Articles</label>
           <input type="text" name="q" value="{{ q }}" class="form-input" placeholder="Search by title or content..." />
         </div>
-        <div class="form-group mb-0">
-          <label class="form-label">🎯 Categories</label>
-          <div class="flex gap-05 flex-wrap maxw-900">
-            {% for c in categories or [] %}
-              {% set active = c.slug in (selected_slugs or []) %}
-              <label class="btn {% if active %}btn-cta{% else %}btn-secondary{% endif %} px-16 py-08 rounded-20 cursor-pointer">
-                <input type="checkbox" name="categories" value="{{ c.slug }}" {% if active %}checked{% endif %} />
-                {{ c.name }}
-              </label>
-            {% endfor %}
-          </div>
-        </div>
         <button type="submit" class="btn h-fit">Apply</button>
-        {% if session.get('user_id') %}
-        <button hx-post="/api/news/refresh" hx-swap="none" type="button" class="btn btn-secondary h-fit">
-          🔄 Refresh Feed
-        </button>
-        {% endif %}
       </form>
     </div>
     
     {% if articles %}
-    <div class="list">
+    <div class="article-grid article-grid-3col">
       {% for a in articles %}
-      <div class="list-item flex gap-1 items-start">
-        {% if a.image_url %}
-          <div class="w-140 h-100 overflow-hidden rounded-12 bg-card border-card">
-            <img src="{{ a.image_url }}" alt="" class="img-cover" />
+      <div class="article-card">
+        <div class="article-card-image {% if not a.image_url %}article-card-image-fallback{% endif %}">
+          {% if a.image_url %}
+          <img src="{{ a.image_url }}" alt="" loading="lazy" />
+          {% else %}
+          <div class="article-card-image-placeholder">
+            <span class="placeholder-icon">📰</span>
           </div>
-        {% endif %}
-        <div class="flex-1">
-          <h3 class="mt-0">
-            <a href="{{ a.url }}" target="_blank">{{ a.title }}</a>
+          {% endif %}
+        </div>
+        <div class="article-card-actions">
+          <a href="/generate?url={{ a.url|urlencode }}" class="btn p-05 fs-09rem w-100 text-center">
+            ✨ Generate Post
+          </a>
+        </div>
+        <div class="article-card-content">
+          {% set cats = (article_categories_map or {}).get(a.id, []) %}
+          {% if cats %}
+          <div class="flex gap-05 flex-wrap mb-05">
+            {% for c in cats[:3] %}
+            <a href="/news?cat={{ c.slug }}" class="topic-pill topic-pill-sm {% if active_cat == c.slug %}topic-pill-active{% endif %}">
+              {{ c.name }}
+            </a>
+            {% endfor %}
+            {% if cats|length > 3 %}
+            <span class="topic-pill topic-pill-sm" title="{{ cats|length }} categories">+{{ cats|length - 3 }}</span>
+            {% endif %}
+          </div>
+          {% endif %}
+
+          <h3 class="article-card-title">
+            <a href="{{ a.url }}" target="_blank" rel="noopener">{{ a.title }}</a>
           </h3>
-          <div class="summary">{{ a.summary[:300] }}{% if a.summary|length > 300 %}...{% endif %}</div>
-          <div class="mt-1rem flex justify-between items-center flex-wrap gap-1">
-            <div class="c-white-60 fs-09rem">
-              📅 {{ a.created_at.strftime('%B %d, %Y') }}
+
+          <p class="article-card-summary">
+            {{ a.summary|striptags|truncate(180, True, '...') }}
+          </p>
+          
+          <div class="c-white-60 fs-085rem mt-05">
+            {{ a.source_name or 'Unknown source' }}
+          </div>
+
+          <div class="article-card-footer">
+            <div class="article-card-meta">
+              <span class="article-card-date">{{ a.created_at.strftime('%b %d, %Y') }}</span>
               {% if a.topics %}
-              <span class="ml-05">
-                🏷️ 
-                {% for topic in (a.topics|dictsort|map(attribute=0)|list)[:3] %}
-                  <span class="badge ml-05">{{ topic }}</span>
+              <div class="article-card-topics">
+                {% for topic in (a.topics|dictsort|map(attribute=0)|list)[:2] %}
+                <span class="article-topic-tag">{{ topic }}</span>
                 {% endfor %}
-              </span>
+              </div>
               {% endif %}
             </div>
-            <a href="/generate?url={{ a.url|urlencode }}" class="btn p-05 fs-09rem">
-              ✨ Generate Post
-            </a>
           </div>
         </div>
       </div>
@@ -76,22 +114,52 @@
         {% if q %}
           Try a different search term or browse all articles.
         {% else %}
-          No articles have been ingested yet. Refresh the feed to get started.
+          No articles have been ingested yet.
         {% endif %}
       </p>
-      {% if session.get('user_id') %}
-      <button hx-post="/api/news/refresh" hx-swap="none" class="btn btn-cta">
-        🔄 Refresh Feed Now
-      </button>
-      {% endif %}
     </div>
     {% endif %}
     
-    {% if articles and articles|length == 20 %}
-    <div class="text-center mt-4">
-      <a href="/news?page={{ (page or 1) + 1 }}{% if q %}&q={{ q }}{% endif %}{% for s in selected_slugs %}&categories={{ s }}{% endfor %}" class="btn btn-secondary">
-        📄 Load More Articles
-      </a>
+    {% if total_pages and total_pages > 1 %}
+    {% set p = page or 1 %}
+    {% set start = (p - 3) if (p - 3) > 1 else 1 %}
+    {% set end = (p + 3) if (p + 3) < total_pages else total_pages %}
+    <div class="pagination mt-4">
+      <div class="flex gap-05 justify-center items-center flex-wrap">
+        {% if p > 1 %}
+        <a href="/news?page={{ p - 1 }}{% if q %}&q={{ q }}{% endif %}{% if active_cat %}&cat={{ active_cat }}{% endif %}" class="btn btn-secondary px-12 py-06">
+          ← Previous
+        </a>
+        {% endif %}
+
+        {% if start > 1 %}
+        <a href="/news?page=1{% if q %}&q={{ q }}{% endif %}{% if active_cat %}&cat={{ active_cat }}{% endif %}" class="btn btn-secondary px-12 py-06">1</a>
+        {% if start > 2 %}
+        <span class="c-white-60 px-1">…</span>
+        {% endif %}
+        {% endif %}
+
+        {% for i in range(start, end + 1) %}
+        {% if i == p %}
+        <span class="btn px-12 py-06" style="pointer-events:none;opacity:0.95; border: 1px solid rgba(255,255,255,0.35);">{{ i }}</span>
+        {% else %}
+        <a href="/news?page={{ i }}{% if q %}&q={{ q }}{% endif %}{% if active_cat %}&cat={{ active_cat }}{% endif %}" class="btn btn-secondary px-12 py-06">{{ i }}</a>
+        {% endif %}
+        {% endfor %}
+
+        {% if end < total_pages %}
+        {% if end < total_pages - 1 %}
+        <span class="c-white-60 px-1">…</span>
+        {% endif %}
+        <a href="/news?page={{ total_pages }}{% if q %}&q={{ q }}{% endif %}{% if active_cat %}&cat={{ active_cat }}{% endif %}" class="btn btn-secondary px-12 py-06">{{ total_pages }}</a>
+        {% endif %}
+
+        {% if p < total_pages %}
+        <a href="/news?page={{ p + 1 }}{% if q %}&q={{ q }}{% endif %}{% if active_cat %}&cat={{ active_cat }}{% endif %}" class="btn btn-secondary px-12 py-06">
+          Next →
+        </a>
+        {% endif %}
+      </div>
     </div>
     {% endif %}
   </div>

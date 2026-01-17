@@ -4,25 +4,17 @@ RSS Feeds configuration organized by category.
 This module defines all news categories and their associated RSS feed URLs.
 Follows Single Responsibility Principle - only configuration, no logic.
 
-Each feed includes a URL, source name, and source_type for proper attribution.
-source_type: 'free' | 'freemium' | 'paid'
-  - free: Fully accessible content, no paywall
-  - freemium: Some free articles, limited access or article count restrictions
-  - paid: Requires subscription, most content blocked
+Each feed includes a URL and source name for attribution.
 """
 from __future__ import annotations
 
-from typing import TypedDict, Literal
-
-
-SourceType = Literal["free", "freemium", "paid"]
+from typing import TypedDict
 
 
 class FeedConfig(TypedDict):
     """Type definition for a single feed."""
     url: str
     name: str
-    source_type: SourceType
 
 
 class CategoryConfig(TypedDict):
@@ -31,27 +23,6 @@ class CategoryConfig(TypedDict):
     slug: str
     image: str
     feeds: list[FeedConfig]
-
-
-# Source type definitions for URL matching (fallback when feed config not found)
-# Maps domain patterns to source types
-PAID_DOMAINS = {
-    "wsj.com",
-    "feeds.a.dj.com",      # Wall Street Journal
-    "bloomberg.com",        # Bloomberg
-    "ft.com",               # Financial Times
-    "nytimes.com",          # New York Times
-}
-
-FREEMIUM_DOMAINS = {
-    "fortune.com",          # Fortune - some free articles
-    "hbr.org",              # Harvard Business Review
-    "harvardbusiness.org",
-    "inc.com",              # Inc. - ad-heavy but some free
-    "forbes.com",           # Forbes - metered
-    "businessinsider.com",  # Business Insider - metered
-    "economist.com",        # The Economist
-}
 
 
 # Default placeholder images for sources without article images
@@ -131,13 +102,13 @@ CATEGORIES: dict[str, CategoryConfig] = {
         "slug": "business-economy-geopolitics",
         "image": "/static/images/categories/business.jpg",
         "feeds": [
-            {"url": "http://feeds.feedburner.com/entrepreneur/latest", "name": "Entrepreneur", "source_type": "free"},
-            {"url": "https://finance.yahoo.com/news/rssindex", "name": "Yahoo Finance", "source_type": "free"},
-            {"url": "http://feeds2.feedburner.com/businessinsider", "name": "Business Insider", "source_type": "free"},
-            {"url": "https://www.ibtimes.com.au/rss", "name": "International Business Times", "source_type": "free"},
-            {"url": "http://feeds.bbci.co.uk/news/business/economy/rss.xml", "name": "BBC Economy", "source_type": "free"},
-            {"url": "https://rss.politico.com/politics-news.xml", "name": "Politico", "source_type": "free"},
-            {"url": "http://www.npr.org/rss/rss.php?id=93559255", "name": "NPR", "source_type": "free"},
+            {"url": "http://feeds.feedburner.com/entrepreneur/latest", "name": "Entrepreneur"},
+            {"url": "https://finance.yahoo.com/news/rssindex", "name": "Yahoo Finance"},
+            {"url": "http://feeds2.feedburner.com/businessinsider", "name": "Business Insider"},
+            {"url": "https://www.ibtimes.com.au/rss", "name": "International Business Times"},
+            {"url": "http://feeds.bbci.co.uk/news/business/economy/rss.xml", "name": "BBC Economy"},
+            {"url": "https://rss.politico.com/politics-news.xml", "name": "Politico"},
+            {"url": "http://www.npr.org/rss/rss.php?id=93559255", "name": "NPR"},
         ],
     },
     "leadership-management-careers": {
@@ -145,10 +116,10 @@ CATEGORIES: dict[str, CategoryConfig] = {
         "slug": "leadership-management-careers",
         "image": "/static/images/categories/leadership.jpg",
         "feeds": [
-            {"url": "https://getlighthouse.com/blog/feed/", "name": "Get Lighthouse", "source_type": "free"},
-            {"url": "https://www.smartbrief.com/originals/leadership/feed", "name": "SmartBrief Leadership", "source_type": "free"},
-            {"url": "http://feeds.feedburner.com/entrepreneur/latest", "name": "Entrepreneur", "source_type": "free"},
-            {"url": "https://news.crunchbase.com/feed/", "name": "Crunchbase News", "source_type": "free"},
+            {"url": "https://getlighthouse.com/blog/feed/", "name": "Get Lighthouse"},
+            {"url": "https://www.smartbrief.com/originals/leadership/feed", "name": "SmartBrief Leadership"},
+            {"url": "http://feeds.feedburner.com/entrepreneur/latest", "name": "Entrepreneur"},
+            {"url": "https://news.crunchbase.com/feed/", "name": "Crunchbase News"},
         ],
     },
     "people-hr-future-of-work": {
@@ -156,15 +127,13 @@ CATEGORIES: dict[str, CategoryConfig] = {
         "slug": "people-hr-future-of-work",
         "image": "/static/images/categories/hr.jpg",
         "feeds": [
-            # === FREE SOURCES ===
-            {"url": "http://feeds.feedburner.com/HrBartender", "name": "HR Bartender", "source_type": "free"},
-            {"url": "https://www.hrdive.com/feeds/news/", "name": "HR Dive", "source_type": "free"},
-            {"url": "https://hrexecutive.com/feed/", "name": "Human Resource Executive", "source_type": "free"},
-            {"url": "https://www.hcamag.com/us/rss", "name": "Human Capital Magazine", "source_type": "free"},
-            {"url": "https://www.personneltoday.com/feed/", "name": "Personnel Today", "source_type": "free"},
-            {"url": "https://workplaceinsight.net/feed/", "name": "Workplace Insight", "source_type": "free"},
-            # === FREEMIUM SOURCES ===
-            {"url": "https://www.shrm.org/rss/pages/rss.aspx", "name": "SHRM", "source_type": "freemium"},
+            {"url": "http://feeds.feedburner.com/HrBartender", "name": "HR Bartender"},
+            {"url": "https://www.hrdive.com/feeds/news/", "name": "HR Dive"},
+            {"url": "https://hrexecutive.com/feed/", "name": "Human Resource Executive"},
+            {"url": "https://www.hcamag.com/us/rss", "name": "Human Capital Magazine"},
+            {"url": "https://www.personneltoday.com/feed/", "name": "Personnel Today"},
+            {"url": "https://workplaceinsight.net/feed/", "name": "Workplace Insight"},
+            {"url": "https://www.shrm.org/rss/pages/rss.aspx", "name": "SHRM"},
         ],
     },
     "marketing-brand-growth": {
@@ -172,10 +141,10 @@ CATEGORIES: dict[str, CategoryConfig] = {
         "slug": "marketing-brand-growth",
         "image": "/static/images/categories/marketing.jpg",
         "feeds": [
-            {"url": "https://www.marketingdive.com/feeds/news/", "name": "Marketing Dive", "source_type": "free"},
-            {"url": "https://searchengineland.com/feed/", "name": "Search Engine Land", "source_type": "free"},
-            {"url": "https://blog.hubspot.com/marketing/rss.xml", "name": "HubSpot Marketing", "source_type": "free"},
-            {"url": "https://www.dmnews.com/feed/", "name": "DM News", "source_type": "free"},
+            {"url": "https://www.marketingdive.com/feeds/news/", "name": "Marketing Dive"},
+            {"url": "https://searchengineland.com/feed/", "name": "Search Engine Land"},
+            {"url": "https://blog.hubspot.com/marketing/rss.xml", "name": "HubSpot Marketing"},
+            {"url": "https://www.dmnews.com/feed/", "name": "DM News"},
         ],
     },
     "technology-ai-software": {
@@ -183,12 +152,12 @@ CATEGORIES: dict[str, CategoryConfig] = {
         "slug": "technology-ai-software",
         "image": "/static/images/categories/technology.jpg",
         "feeds": [
-            {"url": "https://techcrunch.com/feed/", "name": "TechCrunch", "source_type": "free"},
-            {"url": "https://venturebeat.com/feed/", "name": "VentureBeat", "source_type": "free"},
-            {"url": "https://feeds.feedburner.com/TheHackersNews", "name": "The Hacker News", "source_type": "free"},
-            {"url": "https://openai.com/news/rss.xml", "name": "OpenAI", "source_type": "free"},
-            {"url": "http://googleblog.blogspot.com/atom.xml", "name": "Google Blog", "source_type": "free"},
-            {"url": "https://www.digitaltrends.com/computing/feed/", "name": "Digital Trends", "source_type": "free"},
+            {"url": "https://techcrunch.com/feed/", "name": "TechCrunch"},
+            {"url": "https://venturebeat.com/feed/", "name": "VentureBeat"},
+            {"url": "https://feeds.feedburner.com/TheHackersNews", "name": "The Hacker News"},
+            {"url": "https://openai.com/news/rss.xml", "name": "OpenAI"},
+            {"url": "http://googleblog.blogspot.com/atom.xml", "name": "Google Blog"},
+            {"url": "https://www.digitaltrends.com/computing/feed/", "name": "Digital Trends"},
         ],
     },
     "product-ux-design": {
@@ -196,10 +165,10 @@ CATEGORIES: dict[str, CategoryConfig] = {
         "slug": "product-ux-design",
         "image": "/static/images/categories/design.jpg",
         "feeds": [
-            {"url": "https://www.smashingmagazine.com/feed/", "name": "Smashing Magazine", "source_type": "free"},
-            {"url": "https://www.creativebloq.com/feed", "name": "Creative Bloq", "source_type": "free"},
-            {"url": "https://www.designweek.co.uk/feed/", "name": "Design Week", "source_type": "free"},
-            {"url": "https://feeds2.feedburner.com/webdesignerdepot", "name": "Webdesigner Depot", "source_type": "free"},
+            {"url": "https://www.smashingmagazine.com/feed/", "name": "Smashing Magazine"},
+            {"url": "https://www.creativebloq.com/feed", "name": "Creative Bloq"},
+            {"url": "https://www.designweek.co.uk/feed/", "name": "Design Week"},
+            {"url": "https://feeds2.feedburner.com/webdesignerdepot", "name": "Webdesigner Depot"},
         ],
     },
     "startups-entrepreneurship-vc": {
@@ -207,12 +176,12 @@ CATEGORIES: dict[str, CategoryConfig] = {
         "slug": "startups-entrepreneurship-vc",
         "image": "/static/images/categories/startups.jpg",
         "feeds": [
-            {"url": "https://techcrunch.com/category/startups/feed/", "name": "TechCrunch Startups", "source_type": "free"},
-            {"url": "https://news.crunchbase.com/feed/", "name": "Crunchbase News", "source_type": "free"},
-            {"url": "https://www.saastr.com/feed/", "name": "SaaStr", "source_type": "free"},
-            {"url": "http://tomtunguz.com/index.xml", "name": "Tomasz Tunguz", "source_type": "free"},
-            {"url": "https://bothsidesofthetable.com/feed", "name": "Both Sides of the Table", "source_type": "free"},
-            {"url": "https://avc.com/feed/", "name": "AVC (Fred Wilson)", "source_type": "free"},
+            {"url": "https://techcrunch.com/category/startups/feed/", "name": "TechCrunch Startups"},
+            {"url": "https://news.crunchbase.com/feed/", "name": "Crunchbase News"},
+            {"url": "https://www.saastr.com/feed/", "name": "SaaStr"},
+            {"url": "http://tomtunguz.com/index.xml", "name": "Tomasz Tunguz"},
+            {"url": "https://bothsidesofthetable.com/feed", "name": "Both Sides of the Table"},
+            {"url": "https://avc.com/feed/", "name": "AVC (Fred Wilson)"},
         ],
     },
     "markets-investing-fintech": {
@@ -220,12 +189,12 @@ CATEGORIES: dict[str, CategoryConfig] = {
         "slug": "markets-investing-fintech",
         "image": "/static/images/categories/markets.jpg",
         "feeds": [
-            {"url": "https://finance.yahoo.com/news/rssindex", "name": "Yahoo Finance", "source_type": "free"},
-            {"url": "https://www.investing.com/rss/news.rss", "name": "Investing.com", "source_type": "free"},
-            {"url": "https://www.finextra.com/rss/headlines.aspx", "name": "Finextra", "source_type": "free"},
-            {"url": "https://www.pymnts.com/feed/", "name": "PYMNTS", "source_type": "free"},
-            {"url": "http://www.valuewalk.com/feed/", "name": "ValueWalk", "source_type": "free"},
-            {"url": "http://www.bankingexchange.com/index.php/news-feed?format=feed", "name": "Banking Exchange", "source_type": "free"},
+            {"url": "https://finance.yahoo.com/news/rssindex", "name": "Yahoo Finance"},
+            {"url": "https://www.investing.com/rss/news.rss", "name": "Investing.com"},
+            {"url": "https://www.finextra.com/rss/headlines.aspx", "name": "Finextra"},
+            {"url": "https://www.pymnts.com/feed/", "name": "PYMNTS"},
+            {"url": "http://www.valuewalk.com/feed/", "name": "ValueWalk"},
+            {"url": "http://www.bankingexchange.com/index.php/news-feed?format=feed", "name": "Banking Exchange"},
         ],
     },
 }
@@ -256,17 +225,17 @@ def get_feeds_for_category(slug: str) -> list[FeedConfig]:
     return []
 
 
-def get_all_feeds() -> list[tuple[str, str, str, SourceType]]:
+def get_all_feeds() -> list[tuple[str, str, str]]:
     """
-    Get all RSS feed URLs with their category slug, source name, and source type.
+    Get all RSS feed URLs with their category slug and source name.
     
     Returns:
-        List of tuples (feed_url, category_slug, source_name, source_type)
+        List of tuples (feed_url, category_slug, source_name)
     """
     result = []
     for slug, config in CATEGORIES.items():
         for feed in config["feeds"]:
-            result.append((feed["url"], slug, feed["name"], feed.get("source_type", "free")))
+            result.append((feed["url"], slug, feed["name"]))
     return result
 
 
@@ -275,42 +244,4 @@ def get_category_slugs() -> list[str]:
     return list(CATEGORIES.keys())
 
 
-def get_source_type_for_feed(feed_url: str, source_name: str | None = None) -> SourceType:
-    """
-    Get the source type for a given feed URL.
-    
-    First checks the feed config, then falls back to domain matching.
-    
-    Args:
-        feed_url: The feed URL to check
-        source_name: Optional source name to match against config
-        
-    Returns:
-        'free', 'freemium', or 'paid'
-    """
-    # First, try to find in feed configs
-    for config in CATEGORIES.values():
-        for feed in config["feeds"]:
-            if feed["url"] == feed_url or (source_name and feed["name"] == source_name):
-                return feed.get("source_type", "free")
-    
-    # Fallback to domain matching
-    url_lower = feed_url.lower()
-    
-    if any(paid in url_lower for paid in PAID_DOMAINS):
-        return "paid"
-    
-    if any(freemium in url_lower for freemium in FREEMIUM_DOMAINS):
-        return "freemium"
-    
-    return "free"
-
-
-def is_paid_source(url: str) -> bool:
-    """
-    Check if a URL belongs to a paid/paywalled source.
-    
-    DEPRECATED: Use get_source_type_for_feed() instead.
-    Kept for backward compatibility.
-    """
-    return get_source_type_for_feed(url) == "paid"
+ 

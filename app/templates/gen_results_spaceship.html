@@ -48,7 +48,9 @@
     
     <div class="text-center">
       <a href="/generate" class="btn btn-secondary">🔄 Generate More Posts</a>
+      {% if session.get('user_id') %}
       <a href="/news" class="btn ml-1rem">📰 Browse Articles</a>
+      {% endif %}
     </div>
   </div>
 </div>

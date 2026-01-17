@@ -1,0 +1,103 @@
+{% extends 'base_spaceship.html' %}
+{% block content %}
+<div class="container pt-6rem">
+  <div class="section">
+    <div class="text-center mb-6">
+      {% if mode == 'onboarding' %}
+      <h1 class="hero-headline">Pick topics you want to write about</h1>
+      <p class="hero-tagline">We’ll build your feed from these categories. You can change this anytime.</p>
+      {% else %}
+      <h1 class="hero-headline">Edit your topics</h1>
+      <p class="hero-tagline">Update what shows up in your Content Ideas feed.</p>
+      {% endif %}
+    </div>
+
+    <div class="card mb-3">
+      <form method="post" action="/news/topics">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <div class="flex gap-1 justify-center flex-wrap mb-2">
+          <button type="button" class="btn btn-secondary" id="selectAllBtn">Select all</button>
+          <button type="button" class="btn btn-secondary" id="clearBtn">Clear</button>
+        </div>
+
+        <div class="category-grid" id="topicGrid">
+          {% for cat in categories %}
+          {% set checked = cat.slug in (selected_slugs or []) %}
+          <label class="category-card cursor-pointer" data-slug="{{ cat.slug }}">
+            <input
+              type="checkbox"
+              name="slugs"
+              value="{{ cat.slug }}"
+              {% if checked %}checked{% endif %}
+              style="position:absolute;opacity:0;pointer-events:none;"
+            />
+            <div class="category-card__bg" style="background-image: url('{{ cat.image }}')"></div>
+            <div class="category-card__overlay"></div>
+            <div class="category-card__content">
+              <span class="category-card__name">{{ cat.name }}</span>
+              {% if cat.article_count > 0 %}
+              <span class="category-card__count">{{ cat.article_count }} article{{ 's' if cat.article_count != 1 else '' }}</span>
+              {% endif %}
+              <span class="badge ml-05" style="display:inline-block;margin-top:8px;" data-selected-pill>
+                {% if checked %}Selected{% else %}&nbsp;{% endif %}
+              </span>
+            </div>
+          </label>
+          {% endfor %}
+        </div>
+
+        <div class="text-center mt-4">
+          <button type="submit" class="btn btn-cta">Save topics</button>
+          {% if mode == 'onboarding' %}
+          <button type="submit" name="action" value="skip" class="btn btn-secondary ml-1rem">Skip (show everything)</button>
+          {% else %}
+          <a href="/news" class="btn btn-secondary ml-1rem">Cancel</a>
+          <button type="submit" name="action" value="skip" class="btn btn-secondary ml-1rem">Show everything</button>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const grid = document.getElementById('topicGrid');
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    if (!grid) return;
+
+    function updateCard(card) {
+      const cb = card.querySelector('input[type="checkbox"]');
+      const pill = card.querySelector('[data-selected-pill]');
+      const selected = !!(cb && cb.checked);
+      if (pill) pill.textContent = selected ? 'Selected' : ' ';
+      card.style.outline = selected ? '2px solid rgba(255,255,255,0.35)' : 'none';
+    }
+
+    function updateAll() {
+      grid.querySelectorAll('.category-card').forEach(updateCard);
+    }
+
+    // Initial
+    updateAll();
+
+    // Toggle on click (label already toggles, we just update visuals)
+    grid.addEventListener('change', function(e) {
+      const card = e.target && e.target.closest ? e.target.closest('.category-card') : null;
+      if (card) updateCard(card);
+    });
+
+    selectAllBtn && selectAllBtn.addEventListener('click', function() {
+      grid.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
+      updateAll();
+    });
+
+    clearBtn && clearBtn.addEventListener('click', function() {
+      grid.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+      updateAll();
+    });
+  })();
+</script>
+{% endblock %}
+

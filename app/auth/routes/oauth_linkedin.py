@@ -28,7 +28,8 @@ def login_linkedin_start():
     scopes = current_app.config.get("LINKEDIN_SCOPES", "openid profile email")
     state = secrets.token_urlsafe(16)
     session["li_oauth_state"] = state
-    next_url = request.args.get("next") or request.args.get("return_to") or url_for("main.index")
+    # Default to dashboard so the user clearly sees they're logged in.
+    next_url = request.args.get("next") or request.args.get("return_to") or url_for("main.dashboard")
     session["li_oauth_next"] = next_url
     params = {
         "response_type": "code",
@@ -83,14 +84,20 @@ def login_linkedin_callback():
     code = request.args.get("code")
     state = request.args.get("state")
     if not state or state != session.get("li_oauth_state"):
+        flash(
+            "LinkedIn sign-in failed (session was lost). Check cookies, and ensure APP_BASE_URL matches your current domain (www vs non-www, http vs https).",
+            "error",
+        )
         return redirect(url_for("auth.login"))
     if not code:
+        flash("LinkedIn sign-in failed (missing authorization code). Please try again.", "error")
         return redirect(url_for("auth.login"))
     client_id = current_app.config.get("LINKEDIN_CLIENT_ID")
     client_secret = current_app.config.get("LINKEDIN_CLIENT_SECRET")
 
     redirect_uri = absolute_url_for("auth.login_linkedin_callback")
     if not client_id or not client_secret:
+        flash("LinkedIn sign-in is not configured on the server (missing client ID/secret).", "error")
         return redirect(url_for("auth.login"))
 
     token_url = "https://www.linkedin.com/oauth/v2/accessToken"
@@ -109,10 +116,12 @@ def login_linkedin_callback():
         resp.raise_for_status()
         token_data = resp.json()
     except Exception:
+        flash("LinkedIn sign-in failed while exchanging the authorization code. Please try again.", "error")
         return redirect(url_for("auth.login"))
 
     access_token = token_data.get("access_token")
     if not access_token:
+        flash("LinkedIn sign-in failed (no access token returned). Please try again.", "error")
         return redirect(url_for("auth.login"))
 
     headers = {"Authorization": f"Bearer {access_token}"}
@@ -142,16 +151,29 @@ def login_linkedin_callback():
             email = ""
 
     if not (email or sub):
+        flash("LinkedIn sign-in failed (no email returned by LinkedIn).", "error")
         return redirect(url_for("auth.login"))
 
     with db_session() as session_db:
         user = None
-        if email:
-            user = session_db.execute(select(User).where(User.email == email)).scalar_one_or_none()
-        if user is None and sub:
+        # Prefer stable OAuth identity lookup first
+        if sub:
             user = session_db.execute(
                 select(User).where(User.oauth_provider == "linkedin", User.oauth_sub == sub)
             ).scalar_one_or_none()
+        # Optionally link by email (default behavior)
+        if user is None and email and current_app.config.get("OAUTH_LINK_BY_EMAIL", True):
+            user = session_db.execute(select(User).where(User.email == email)).scalar_one_or_none()
+        # If we are NOT linking by email and an account already exists for that email, refuse OAuth login.
+        if user is None and email and not current_app.config.get("OAUTH_LINK_BY_EMAIL", True):
+            existing_by_email = session_db.execute(select(User).where(User.email == email)).scalar_one_or_none()
+            if existing_by_email is not None:
+                flash(
+                    "An account already exists for this email. Please sign in using the original method "
+                    "(email/password or the provider you used before), or use a different LinkedIn account/email.",
+                    "error",
+                )
+                return redirect(url_for("auth.login", email=email))
         if user is None:
             given_name = None
             try:

@@ -18,6 +18,7 @@ from .extractors import (
 from .vision_extractor import extract_markdown_from_pdf_via_vision
 from .easyocr_extractor import extract_text_from_pdf_via_easyocr
 from .forms import GenerateForm
+from .generation_settings import GENERATION_CATEGORIES
 from ..limiter import limiter
 from flask_limiter.util import get_remote_address
 
@@ -54,7 +55,12 @@ def generate_form():
         return redirect(url_for("auth.login", next=request.full_path))
     prefill_url = request.args.get("url", "").strip()
     form = GenerateForm(url=prefill_url)
-    return render_template("gen_form_spaceship_v2.html", form=form, prefill_url=prefill_url)
+    return render_template(
+        "gen_form_spaceship_v2.html",
+        form=form,
+        prefill_url=prefill_url,
+        generation_categories=GENERATION_CATEGORIES,
+    )
 
 @bp.route("/generate_v2", methods=["GET"])
 def generate_form_v2():
@@ -78,7 +84,7 @@ def api_generate():
         return redirect(url_for("auth.login", next=request.full_path))
     
     # Determine which model will be used (needed for quota check)
-    model_choice = (form.model.data or "claude").strip().lower()
+    model_choice = (request.form.get("model") or form.model.data or "claude").strip().lower()
     use_gpt = model_choice in {"gpt", "gpt5", "openai", "chatgpt", "gpt-5"}
     
     # Atomic quota check and reservation using SELECT FOR UPDATE
@@ -140,12 +146,17 @@ def api_generate():
     # Track if generation succeeds (for potential quota refund on failure)
     generation_succeeded = False
     
-    url = (form.url.data or "").strip()
+    url = (request.form.get("url") or form.url.data or "").strip()
     article_id = ""  # legacy, removed from UI
-    persona = form.persona.data or "PM"
-    tone = form.tone.data or "analytical"
-    hook_type = (form.hook_type.data or "auto").strip()
-    model_choice = (form.model.data or "claude").strip().lower()
+    persona = (request.form.get("persona") or form.persona.data or "auto").strip()
+    tone = (request.form.get("tone") or form.tone.data or "auto").strip()
+    hook_type = (request.form.get("hook_type") or form.hook_type.data or "auto").strip()
+    goal = (request.form.get("goal") or getattr(form, "goal", None) and form.goal.data or "auto").strip()  # type: ignore[attr-defined]
+    length = (request.form.get("length") or getattr(form, "length", None) and form.length.data or "auto").strip()  # type: ignore[attr-defined]
+    ending = (request.form.get("ending") or getattr(form, "ending", None) and form.ending.data or "auto").strip()  # type: ignore[attr-defined]
+    emoji = (request.form.get("emoji") or getattr(form, "emoji", None) and form.emoji.data or "no").strip().lower()  # type: ignore[attr-defined]
+    language_choice = (request.form.get("language") or getattr(form, "language", None) and form.language.data or "").strip()  # type: ignore[attr-defined]
+    model_choice = (request.form.get("model") or form.model.data or "claude").strip().lower()
 
     # If Text field has content, prioritize it regardless of mode
     mode = (request.form.get("source_mode") or "text").strip().lower()
@@ -179,7 +190,7 @@ def api_generate():
                 except Exception:
                     return render_template("gen_results_spaceship.html", variants=[], error="Could not fetch content from the URL.")
         elif mode == "text":
-            text_val = (form.text.data or "").strip()
+            text_val = (request.form.get("text") or form.text.data or "").strip()
             if not text_val:
                 return render_template("gen_results_spaceship.html", variants=[], error="Please paste your text.")
             source_text = text_val[:8000]
@@ -282,6 +293,16 @@ def api_generate():
     source_text = (source_text or "").strip()[:8000]
 
     language_hint = _detect_language_hint(source_text)
+    final_language = language_choice or language_hint
+
+    # Adjust max tokens based on requested length
+    length_key = (length or "auto").strip().lower()
+    if length_key == "short":
+        max_tokens = 350
+    elif length_key == "long":
+        max_tokens = 900
+    else:
+        max_tokens = 600
 
     # 2-pass: extract grounded facts, then write
     try:
@@ -295,8 +316,12 @@ def api_generate():
                 persona=persona,
                 tone=tone,
                 hook_type=hook_type,
-                language=language_hint,
-                max_tokens=600,
+                goal=goal,
+                length=length,
+                ending=ending,
+                emoji=emoji,
+                language=final_language,
+                max_tokens=max_tokens,
             )
             variants = [drafted]
         except Exception:
@@ -309,10 +334,14 @@ def api_generate():
         persona=persona,
         tone=tone,
         n_variants=1,
-        max_tokens=600,
+        max_tokens=max_tokens,
         keywords=list(kw_dict.keys()),
         hook_type=hook_type,
-            language=language_hint,
+            goal=goal,
+            length=length,
+            ending=ending,
+            emoji=emoji,
+            language=final_language,
         )
     # If the model responded with our sentinel indicating insufficient grounding, return error
     if variants and isinstance(variants[0], str) and variants[0].strip().upper() == "INSUFFICIENT_SOURCE":
@@ -347,8 +376,11 @@ def api_generate():
                 g = Generation(
                     user_id=user_id,
                     article_id=(selected_article.id if selected_article else None),
-                    model=("gpt-5" if use_gpt else "claude-3-5-sonnet-20240620"),
-                    prompt=f"persona={persona}, tone={tone}, hook_type={hook_type}",
+                    model=("gpt-5" if use_gpt else "claude-3-7-sonnet-20250219"),
+                    prompt=(
+                        f"persona={persona}, tone={tone}, hook_type={hook_type}, "
+                        f"goal={goal}, length={length}, ending={ending}, emoji={emoji}, language={final_language}"
+                    ),
                     draft_text=v,
                     persona=persona,
                     tone=tone,

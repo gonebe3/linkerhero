@@ -11,7 +11,9 @@
   <body>
     <nav class="nav">
       <a href="/">Home</a>
+      {% if session.get('user_id') %}
       <a href="/news">News</a>
+      {% endif %}
       <a href="/generate">Generate</a>
       {% if session.get('user_id') %}
       <a href="/logout">Logout</a>

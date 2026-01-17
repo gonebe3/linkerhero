@@ -25,39 +25,95 @@ class GenerateForm(FlaskForm):
     persona = SelectField(
         "Persona",
         choices=[
-            ("PM", "Product Manager"),
-            ("Consultant", "Consultant"),
-            ("Engineer", "Engineer"),
-            ("Founder", "Founder"),
-            ("Marketer", "Marketer"),
-            ("Sales", "Sales"),
+            ("auto", "Auto"),
+            ("the-founder", "The Founder"),
+            ("the-expert", "The Expert"),
+            ("the-storyteller", "The Storyteller"),
+            ("the-disruptor", "The Disruptor"),
+            ("the-executive", "The Executive"),
+            ("the-growth-hacker", "The Growth Hacker"),
         ],
-        default="PM",
+        default="auto",
     )
 
     tone = SelectField(
         "Tone",
         choices=[
-            ("analytical", "Analytical"),
-            ("bold", "Bold"),
-            ("conversational", "Conversational"),
-            ("storytelling", "Storytelling"),
-            ("data-driven", "Data-driven"),
+            ("auto", "Auto"),
+            ("professional", "Professional"),
+            ("empathetic", "Empathetic"),
+            ("direct", "Direct"),
+            ("witty", "Witty"),
+            ("inspirational", "Inspirational"),
+            ("casual", "Casual"),
         ],
-        default="analytical",
+        default="auto",
     )
 
     hook_type = SelectField(
         "Hook Type",
         choices=[
             ("auto", "Auto"),
-            ("question", "Question"),
-            ("contrarian", "Contrarian"),
-            ("numbered", "Numbered"),
-            ("how_to", "How-to"),
-            ("story", "Short Story"),
+            ("the-hot-take", "The Hot Take"),
+            ("hard-lesson", "Hard Lesson"),
+            ("the-blueprint-how-to", "The Blueprint (How-To)"),
+            ("zero-to-hero-transformation", "Zero to Hero (Transformation)"),
+            ("cheat-sheet-listicle", "Cheat Sheet (Listicle)"),
+            ("the-call-out-direct-audience", "The Call-Out (Direct Audience)"),
+            ("shock-stat-statistic", "Shock Stat (Statistic)"),
         ],
         default="auto",
+    )
+
+    goal = SelectField(
+        "Goal",
+        choices=[
+            ("auto", "Auto"),
+            ("viral-reach", "Viral Reach"),
+            ("engagement", "Engagement"),
+            ("authority", "Authority"),
+            ("lead-gen", "Lead Gen"),
+            ("personal-story", "Personal Story"),
+        ],
+        default="auto",
+    )
+
+    length = SelectField(
+        "Length",
+        choices=[("auto", "Auto"), ("short", "Short"), ("medium", "Medium"), ("long", "Long")],
+        default="auto",
+    )
+
+    ending = SelectField(
+        "Ending",
+        choices=[
+            ("auto", "Auto"),
+            ("mic-drop", "Mic Drop"),
+            ("discussion", "Discussion"),
+            ("the-hand-raiser", "The Hand-Raiser"),
+            ("the-pitch", "The Pitch"),
+            ("profile-funnel", "Profile Funnel"),
+        ],
+        default="auto",
+    )
+
+    emoji = SelectField("Emoji", choices=[("no", "No"), ("yes", "Yes")], default="no")
+
+    language = SelectField(
+        "Language",
+        choices=[
+            ("English", "English"),
+            ("Spanish", "Spanish"),
+            ("French", "French"),
+            ("German", "German"),
+            ("Portuguese", "Portuguese"),
+            ("Italian", "Italian"),
+            ("Dutch", "Dutch"),
+            ("Japanese", "Japanese"),
+            ("Korean", "Korean"),
+            ("Chinese", "Chinese"),
+        ],
+        default="English",
     )
 
     model = SelectField(

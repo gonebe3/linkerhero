@@ -39,22 +39,19 @@
           <h3 class="c-white fw-700 fs-1rem mb-2">Filter by Source</h3>
           <div class="source-list-vertical">
             <a 
-              href="/news/{{ category.slug }}?filter={{ current_filter }}{% if query %}&q={{ query|urlencode }}{% endif %}" 
+              href="/news/{{ category.slug }}{% if query %}?q={{ query|urlencode }}{% endif %}" 
               class="source-list-item {% if not current_source %}source-list-item-active{% endif %}"
             >
               <span class="source-list-name">All Sources</span>
-              <span class="source-list-count">{{ source_type_counts.free + source_type_counts.freemium + source_type_counts.paid }}</span>
+              <span class="source-list-count">{{ total_count }}</span>
             </a>
             {% for src in sources %}
             <a 
-              href="/news/{{ category.slug }}?source={{ src.name|urlencode }}&filter={{ current_filter }}{% if query %}&q={{ query|urlencode }}{% endif %}" 
+              href="/news/{{ category.slug }}?source={{ src.name|urlencode }}{% if query %}&q={{ query|urlencode }}{% endif %}" 
               class="source-list-item {% if current_source == src.name %}source-list-item-active{% endif %}"
             >
               <span class="source-list-name">
                 {{ src.name }}
-                {% if src.source_type == 'free' %}<span class="source-type-badge source-type-badge-free">Free</span>{% endif %}
-                {% if src.source_type == 'freemium' %}<span class="source-type-badge source-type-badge-limited">Limited</span>{% endif %}
-                {% if src.source_type == 'paid' %}<span class="source-type-badge source-type-badge-paid">Paid</span>{% endif %}
               </span>
               <span class="source-list-count">{{ src.count }}</span>
             </a>
@@ -77,64 +74,7 @@
           </div>
         </div>
         
-        <!-- Source type filter toggle -->
-        <div class="filter-toggle mb-3">
-          <div class="filter-toggle-inner">
-            <a 
-              href="/news/{{ category.slug }}?filter=all{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" 
-              class="filter-btn {% if current_filter == 'all' %}filter-btn-active{% endif %}"
-            >
-              📰 All
-              <span class="filter-count">{{ source_type_counts.free + source_type_counts.freemium + source_type_counts.paid }}</span>
-            </a>
-            <a 
-              href="/news/{{ category.slug }}?filter=free{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" 
-              class="filter-btn filter-btn-free {% if current_filter == 'free' %}filter-btn-active{% endif %}"
-            >
-              ✅ Free
-              <span class="filter-count">{{ source_type_counts.free }}</span>
-            </a>
-            {% if source_type_counts.freemium > 0 %}
-            <a 
-              href="/news/{{ category.slug }}?filter=freemium{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" 
-              class="filter-btn filter-btn-limited {% if current_filter == 'freemium' %}filter-btn-active{% endif %}"
-            >
-              ⚡ Limited
-              <span class="filter-count">{{ source_type_counts.freemium }}</span>
-            </a>
-            {% endif %}
-            {% if source_type_counts.paid > 0 %}
-            <a 
-              href="/news/{{ category.slug }}?filter=paid{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" 
-              class="filter-btn filter-btn-paid {% if current_filter == 'paid' %}filter-btn-active{% endif %}"
-            >
-              🔒 Paid
-              <span class="filter-count">{{ source_type_counts.paid }}</span>
-            </a>
-            {% endif %}
-            <!-- Info icon with explanation tooltip -->
-            <div class="source-info-trigger">
-              <span class="source-info-icon">ℹ️</span>
-              <div class="source-info-popup">
-                <div class="source-info-title">About Article Sources</div>
-                <div class="source-info-desc">These labels refer to the <strong>original publisher's</strong> access policy, not LinkerHero:</div>
-                <div class="source-info-item">
-                  <span class="source-info-badge source-info-badge-free">✅ Free</span>
-                  <span>Full article available on publisher's site without signup</span>
-                </div>
-                <div class="source-info-item">
-                  <span class="source-info-badge source-info-badge-limited">⚡ Limited</span>
-                  <span>Publisher offers limited free articles per month (e.g., 3-5/month)</span>
-                </div>
-                <div class="source-info-item">
-                  <span class="source-info-badge source-info-badge-paid">🔒 Paid</span>
-                  <span>Publisher requires subscription to read full article</span>
-                </div>
-                <div class="source-info-note">💡 We generate posts from headlines & summaries only — no paywall content is accessed.</div>
-              </div>
-            </div>
-          </div>
-        </div>
+        {# Source-type toggle removed (all sources are free now) #}
         
         <!-- Search bar -->
         <div class="card mb-3">
@@ -142,7 +82,6 @@
             {% if current_source %}
             <input type="hidden" name="source" value="{{ current_source }}" />
             {% endif %}
-            <input type="hidden" name="filter" value="{{ current_filter }}" />
             <div class="form-group mb-0 flex-1">
               <label class="form-label">🔍 Search Articles</label>
               <input 
@@ -154,17 +93,6 @@
               />
             </div>
             <button type="submit" class="btn search-btn">Search</button>
-            {% if session.get('user_id') %}
-            <button 
-              hx-post="/api/news/refresh/{{ category.slug }}" 
-              hx-swap="none"
-              hx-on::after-request="if(event.detail.successful) location.reload()"
-              type="button" 
-              class="btn btn-secondary"
-            >
-              🔄 Refresh
-            </button>
-            {% endif %}
           </form>
         </div>
     
@@ -172,7 +100,7 @@
     {% if articles %}
     <div class="article-grid">
       {% for a in articles %}
-      <div class="article-card article-card-{{ a.source_type or 'free' }}">
+      <div class="article-card">
         <div class="article-card-image {% if not a.image_url %}article-card-image-fallback{% endif %}">
           {% if a.image_url %}
           <img src="{{ a.image_url }}" alt="" loading="lazy" />
@@ -181,20 +109,11 @@
             <span class="placeholder-icon">📰</span>
           </div>
           {% endif %}
-          {% if a.source_type == 'paid' %}
-          <span class="source-overlay source-overlay-paid">🔒 Paid</span>
-          {% elif a.source_type == 'freemium' %}
-          <span class="source-overlay source-overlay-freemium">⚡ Freemium</span>
-          {% endif %}
         </div>
         <div class="article-card-content">
           <!-- Source badge with type indicator -->
           {% if a.source_name %}
-          <div class="article-source-badge article-source-badge-{{ a.source_type or 'free' }}">
-            {{ a.source_name }}
-            {% if a.source_type == 'freemium' %}<span class="ml-025">⚡</span>{% endif %}
-            {% if a.source_type == 'paid' %}<span class="ml-025">🔒</span>{% endif %}
-          </div>
+          <div class="article-source-badge">{{ a.source_name }}</div>
           {% endif %}
           
           <h3 class="article-card-title">
@@ -232,7 +151,7 @@
     <div class="pagination mt-4">
       <div class="flex gap-05 justify-center items-center flex-wrap">
         {% if page > 1 %}
-        <a href="/news/{{ category.slug }}?page={{ page - 1 }}&filter={{ current_filter }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" class="btn btn-secondary px-12 py-06">
+        <a href="/news/{{ category.slug }}?page={{ page - 1 }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" class="btn btn-secondary px-12 py-06">
           ← Previous
         </a>
         {% endif %}
@@ -242,7 +161,7 @@
         </span>
         
         {% if page < total_pages %}
-        <a href="/news/{{ category.slug }}?page={{ page + 1 }}&filter={{ current_filter }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" class="btn btn-secondary px-12 py-06">
+        <a href="/news/{{ category.slug }}?page={{ page + 1 }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" class="btn btn-secondary px-12 py-06">
           Next →
         </a>
         {% endif %}
@@ -260,23 +179,12 @@
         No articles match your search "{{ query }}". Try a different search term.
         {% elif current_source %}
         No articles from "{{ current_source }}" yet.
-        {% elif current_filter == 'free' %}
-        No free articles available. Try showing all news.
-        {% else %}
+      {% else %}
         No articles have been fetched yet for this category.
-        {% endif %}
+      {% endif %}
       </p>
-      {% if query or current_source or current_filter == 'free' %}
+      {% if query or current_source %}
       <a href="/news/{{ category.slug }}" class="btn btn-secondary">Clear Filters</a>
-      {% elif session.get('user_id') %}
-      <button 
-        hx-post="/api/news/refresh/{{ category.slug }}" 
-        hx-swap="none"
-        hx-on::after-request="if(event.detail.successful) location.reload()"
-        class="btn btn-cta"
-      >
-        🔄 Fetch Articles Now
-      </button>
       {% endif %}
     </div>
     {% endif %}

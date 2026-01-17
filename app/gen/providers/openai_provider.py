@@ -22,23 +22,72 @@ class OpenAIProvider:
         max_tokens: int = 400,
         keywords: list[str] | None = None,
         hook_type: str | None = None,
+        goal: str | None = None,
+        length: str | None = None,
+        ending: str | None = None,
+        emoji: str | None = None,
         language: str | None = None,
     ) -> List[str]:
         if not self.client:
             base = source_text.split("\n")[0][:140]
             return [f"{persona} {tone}: {base} #draft" for _ in range(n_variants)]
 
-        hook_clause = f" Hook style: {hook_type}." if hook_type and hook_type != "auto" else ""
+        def humanize(v: str | None) -> str:
+            if not v:
+                return ""
+            return v.replace("_", " ").replace("-", " ").strip()
+
+        hook_clause = f" Hook type: {humanize(hook_type)}." if hook_type and hook_type != "auto" else " Hook type: Auto (infer best)."
+        persona_clause = f" Persona: {humanize(persona)}." if persona and persona != "auto" else " Persona: Auto (infer best)."
+        tone_clause = f" Tone: {humanize(tone)}." if tone and tone != "auto" else " Tone: Auto (infer best)."
+        goal_clause = f" Goal: {humanize(goal)}." if goal and goal != "auto" else " Goal: Auto (infer best)."
+
+        if (emoji or "").lower() == "yes":
+            emoji_clause = " Emoji: Allowed but sparse (0–3 max). No emoji spam."
+        else:
+            emoji_clause = " Emoji: Do not use emojis."
+
+        length_clause = ""
+        if length == "short":
+            length_clause = " Length: Short (1–2 short paragraphs, ~80–140 words)."
+        elif length == "medium":
+            length_clause = " Length: Medium (2–4 short paragraphs, ~150–260 words)."
+        elif length == "long":
+            length_clause = " Length: Long (4–6 short paragraphs, ~280–420 words)."
+        else:
+            length_clause = " Length: Auto (pick the best length)."
+
+        ending_clause = ""
+        if ending == "mic-drop":
+            ending_clause = " Ending: Mic Drop (end with a strong statement; no question)."
+        elif ending == "discussion":
+            ending_clause = " Ending: Discussion (end with a thought-provoking open question)."
+        elif ending == "the-hand-raiser":
+            ending_clause = " Ending: The Hand-Raiser (ask readers to comment 'GUIDE' to get a resource)."
+        elif ending == "the-pitch":
+            ending_clause = " Ending: The Pitch (invite qualified leads to DM you or book a call)."
+        elif ending == "profile-funnel":
+            ending_clause = " Ending: Profile Funnel (ask readers to visit your profile and follow for more)."
+        else:
+            ending_clause = " Ending: Auto (choose the best ending style for the goal)."
+
+        language_clause = f" Write the post in {language}." if language else " Write in the same language as the Source."
         system = (
             "You write concise, topic-grounded LinkedIn posts. Start with a strong hook. 2–4 short paragraphs. "
-            f"Persona: {persona}. Tone: {tone}. Include keywords: {', '.join(keywords or [])}. "
+            + persona_clause
+            + tone_clause
+            + goal_clause
+            + length_clause
+            + ending_clause
+            + emoji_clause
+            + f" Include keywords: {', '.join(keywords or [])}. "
             "Keep paragraphs under 60 words."
             + hook_clause
             + " Output only the post text. Do not include prefaces or headings."
-            + " Always write in the same language as the Source text (do not translate)."
+            + language_clause
             + " CRITICAL: Base the post ONLY on the content in 'Source' below. Do NOT give generic LinkedIn tips or advice unless the Source is about LinkedIn itself."
         )
-        lang_clause = f" Write the post in {language}." if language else ""
+        lang_clause = ""  # already included in system
         user = (
             f"Craft {n_variants} LinkedIn-style post(s). "
             "Start with a strong hook, then 2–4 short paragraphs (<=60 words each). "
@@ -99,19 +148,64 @@ class OpenAIProvider:
         persona: str,
         tone: str,
         hook_type: str | None = None,
+        goal: str | None = None,
+        length: str | None = None,
+        ending: str | None = None,
+        emoji: str | None = None,
         language: str | None = None,
         max_tokens: int = 600,
     ) -> str:
         if not self.client:
             base = " ".join(facts)[:400]
             return f"{base}"
-        hook_clause = f" Hook style: {hook_type}." if hook_type and hook_type != "auto" else ""
+        def humanize(v: str | None) -> str:
+            if not v:
+                return ""
+            return v.replace("_", " ").replace("-", " ").strip()
+
+        hook_clause = f" Hook type: {humanize(hook_type)}." if hook_type and hook_type != "auto" else " Hook type: Auto (infer best)."
+        persona_clause = f" Persona: {humanize(persona)}." if persona and persona != "auto" else " Persona: Auto (infer best)."
+        tone_clause = f" Tone: {humanize(tone)}." if tone and tone != "auto" else " Tone: Auto (infer best)."
+        goal_clause = f" Goal: {humanize(goal)}." if goal and goal != "auto" else " Goal: Auto (infer best)."
+        if (emoji or "").lower() == "yes":
+            emoji_clause = " Emoji: Allowed but sparse (0–3 max). No emoji spam."
+        else:
+            emoji_clause = " Emoji: Do not use emojis."
+        length_clause = ""
+        if length == "short":
+            length_clause = " Length: Short (1–2 short paragraphs, ~80–140 words)."
+        elif length == "medium":
+            length_clause = " Length: Medium (2–4 short paragraphs, ~150–260 words)."
+        elif length == "long":
+            length_clause = " Length: Long (4–6 short paragraphs, ~280–420 words)."
+        else:
+            length_clause = " Length: Auto (pick the best length)."
+        ending_clause = ""
+        if ending == "mic-drop":
+            ending_clause = " Ending: Mic Drop (end with a strong statement; no question)."
+        elif ending == "discussion":
+            ending_clause = " Ending: Discussion (end with a thought-provoking open question)."
+        elif ending == "the-hand-raiser":
+            ending_clause = " Ending: The Hand-Raiser (ask readers to comment 'GUIDE' to get a resource)."
+        elif ending == "the-pitch":
+            ending_clause = " Ending: The Pitch (invite qualified leads to DM you or book a call)."
+        elif ending == "profile-funnel":
+            ending_clause = " Ending: Profile Funnel (ask readers to visit your profile and follow for more)."
+        else:
+            ending_clause = " Ending: Auto (choose the best ending style for the goal)."
+        language_clause = f" Write the post in {language}." if language else " Write in the same language as the Facts."
         system = (
             "You write concise, topic-grounded LinkedIn posts. Start with a strong hook. 2–4 short paragraphs. "
-            f"Persona: {persona}. Tone: {tone}. Keep paragraphs under 60 words."
+            + persona_clause
+            + tone_clause
+            + goal_clause
+            + length_clause
+            + ending_clause
+            + emoji_clause
+            + " Keep paragraphs under 60 words."
             + hook_clause
             + " Output only the post text. Do not include headings."
-            + " Always write in the language of the Facts."
+            + language_clause
         )
         facts_text = "\n- " + "\n- ".join(facts[:20])
         user = (

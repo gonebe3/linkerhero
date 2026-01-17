@@ -8,12 +8,13 @@ Routes:
 """
 from __future__ import annotations
 
-from flask import Blueprint, abort, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, jsonify, redirect, render_template, request, session, url_for, flash
 
 from ..db import db_session
-from ..models import User
+from ..models import User, UserNewsPreference, Category as DbCategory, ArticleCategory as DbArticleCategory
 from .services import CategoryService, ArticleService
 from .feeds_config import get_category_by_slug as get_category_config
+from sqlalchemy import select
 
 bp = Blueprint("news", __name__, url_prefix="")
 
@@ -26,16 +27,177 @@ def _safe_int(value, default: int = 1) -> int:
         return default
 
 
-@bp.route("/news")
-def news_categories():
-    """
-    Category selection page - displays all 8 categories as cards.
-    
-    User clicks a category to see articles in that category.
-    """
+def _require_login():
+    """Redirect to login (with return path) if user isn't authenticated."""
+    if session.get("user_id"):
+        return None
+    flash("Please log in to access Content Ideas.", "error")
+    return redirect(url_for("auth.login", next=request.full_path))
+
+def _get_user_news_pref(user_id: str) -> UserNewsPreference | None:
+    with db_session() as s:
+        return s.execute(
+            select(UserNewsPreference).where(UserNewsPreference.user_id == user_id)
+        ).scalar_one_or_none()
+
+
+def _save_user_news_pref(
+    user_id: str,
+    slugs: list[str],
+    *,
+    show_only_my_categories: bool,
+    onboarded: bool = True,
+) -> None:
+    payload = {"slugs": slugs, "onboarded": bool(onboarded)}
+    with db_session() as s:
+        pref = s.execute(
+            select(UserNewsPreference).where(UserNewsPreference.user_id == user_id)
+        ).scalar_one_or_none()
+        if pref is None:
+            pref = UserNewsPreference(
+                user_id=user_id,
+                categories=payload,
+                show_only_my_categories=bool(show_only_my_categories),
+            )
+            s.add(pref)
+        else:
+            pref.categories = payload
+            pref.show_only_my_categories = bool(show_only_my_categories)
+
+
+@bp.route("/news/topics", methods=["GET", "POST"])
+def news_topics():
+    """Pick or edit preferred news categories (one-time onboarding + anytime edits)."""
+    maybe_redirect = _require_login()
+    if maybe_redirect:
+        return maybe_redirect
+    user_id = session.get("user_id") or ""
+
     categories = CategoryService.get_all_categories()
-    total_articles = ArticleService.get_total_article_count()
-    return render_template("news_categories.html", categories=categories, total_articles=total_articles)
+    slug_to_name = {c["slug"]: c["name"] for c in categories}
+
+    pref = _get_user_news_pref(user_id)
+    existing = (pref.categories or {}) if pref else {}
+    selected_slugs = list(existing.get("slugs") or [])
+    selected_slugs = [s for s in selected_slugs if s in slug_to_name]
+    show_only = bool(getattr(pref, "show_only_my_categories", False)) if pref else False
+
+    if request.method == "POST":
+        action = (request.form.get("action") or "").strip().lower()
+        if action == "skip":
+            _save_user_news_pref(
+                user_id,
+                [],
+                show_only_my_categories=False,
+                onboarded=True,
+            )
+            return redirect(url_for("news.my_feed"))
+
+        slugs = request.form.getlist("slugs")
+        slugs = [s for s in slugs if s in slug_to_name]
+        slugs = list(dict.fromkeys(slugs))  # preserve order, dedupe
+        _save_user_news_pref(
+            user_id,
+            slugs,
+            show_only_my_categories=bool(slugs),
+            onboarded=True,
+        )
+        return redirect(url_for("news.my_feed"))
+
+    mode = (request.args.get("mode") or "edit").strip().lower()
+    return render_template(
+        "news_topics_picker.html",
+        categories=categories,
+        selected_slugs=selected_slugs,
+        show_only_my_categories=show_only,
+        mode=mode,
+    )
+
+
+@bp.route("/news", methods=["GET"])
+def my_feed():
+    """
+    Personalized aggregated feed across preferred categories.
+    If the user hasn't onboarded yet, prompt for topics once.
+    """
+    maybe_redirect = _require_login()
+    if maybe_redirect:
+        return maybe_redirect
+
+    user_id = session.get("user_id") or ""
+    categories = CategoryService.get_all_categories()
+    slug_to_cat = {c["slug"]: c for c in categories}
+
+    pref = _get_user_news_pref(user_id)
+    pref_cats = (pref.categories or {}) if pref else {}
+    onboarded = bool(pref_cats.get("onboarded")) if pref else False
+
+    # First-time flow: ask once.
+    if not onboarded:
+        return redirect(url_for("news.news_topics", mode="onboarding"))
+
+    selected_slugs = list(pref_cats.get("slugs") or [])
+    selected_slugs = [s for s in selected_slugs if s in slug_to_cat]
+    show_only = bool(getattr(pref, "show_only_my_categories", False)) if pref else False
+
+    page = _safe_int(request.args.get("page"), 1)
+    query = (request.args.get("q") or "").strip()
+    active_cat = (request.args.get("cat") or "").strip()
+    if active_cat and active_cat not in slug_to_cat:
+        active_cat = ""
+
+    page_size = 20
+
+    effective_slugs: list[str] = selected_slugs if (show_only and selected_slugs) else []
+    if active_cat:
+        effective_slugs = [active_cat]
+    articles, total_count, total_pages = ArticleService.get_articles_for_categories(
+        category_slugs=effective_slugs,
+        page=page,
+        page_size=page_size,
+        query=query or None,
+    )
+
+    selected_categories = [slug_to_cat[s] for s in selected_slugs if s in slug_to_cat]
+
+    # Build per-article category pills (all categories the article belongs to)
+    article_categories_map: dict[str, list[dict]] = {}
+    try:
+        article_ids = [a.id for a in articles]
+        if article_ids:
+            with db_session() as s:
+                rows = s.execute(
+                    select(
+                        DbArticleCategory.article_id,
+                        DbCategory.slug,
+                        DbCategory.name,
+                    )
+                    .join(DbCategory, DbCategory.id == DbArticleCategory.category_id)
+                    .where(DbArticleCategory.article_id.in_(article_ids))
+                ).all()
+            for article_id, cat_slug, cat_name in rows:
+                article_categories_map.setdefault(str(article_id), []).append(
+                    {"slug": cat_slug, "name": cat_name}
+                )
+            # keep stable order by name
+            for k in list(article_categories_map.keys()):
+                article_categories_map[k] = sorted(article_categories_map[k], key=lambda x: x["name"])
+    except Exception:
+        article_categories_map = {}
+
+    return render_template(
+        "news_board_spaceship.html",
+        articles=articles,
+        page=page,
+        total_pages=total_pages,
+        total_count=total_count,
+        q=query,
+        show_only_my_categories=show_only,
+        selected_slugs=selected_slugs,
+        selected_categories=selected_categories,
+        active_cat=active_cat,
+        article_categories_map=article_categories_map,
+    )
 
 
 @bp.route("/news/<slug>")
@@ -46,33 +208,23 @@ def category_detail(slug: str):
     Args:
         slug: Category slug (e.g., 'technology-ai-software')
     """
+    maybe_redirect = _require_login()
+    if maybe_redirect:
+        return maybe_redirect
     # Validate category exists
     category = CategoryService.get_category_by_slug(slug)
     if not category:
         abort(404)
     
-    # Parse pagination, search, source filter, and source type filter params
+    # Parse pagination, search, and source filter params
     page = _safe_int(request.args.get("page"), 1)
     query = request.args.get("q", "").strip()
     source_filter = request.args.get("source", "").strip() or None
-    
-    # Source type filter: 'all', 'free', 'freemium', 'free_only' (strictly free)
-    current_filter = request.args.get("filter", "all").strip()
-    if current_filter not in ("all", "free", "freemium", "paid", "free_only"):
-        current_filter = "all"
-    
-    # Map filter to source_type_filter for service
-    source_type_filter = None if current_filter == "all" else current_filter
-    
+
     page_size = 20
-    
-    # Get counts by source type for the filter toggle
-    source_type_counts = ArticleService.get_source_type_counts(slug)
-    # Also get legacy paid_free_counts for backward compat
-    paid_free_counts = ArticleService.get_paid_free_counts(slug)
-    
+
     # Get available sources for this category (for sidebar)
-    sources = ArticleService.get_sources_for_category(slug, source_type_filter=source_type_filter)
+    sources = ArticleService.get_sources_for_category(slug)
     
     # Get articles (with optional search and source filter)
     if query:
@@ -82,7 +234,6 @@ def category_detail(slug: str):
             page=page,
             page_size=page_size,
             source_filter=source_filter,
-            source_type_filter=source_type_filter,
         )
     else:
         articles, total_count, total_pages = ArticleService.get_articles_for_category(
@@ -90,7 +241,6 @@ def category_detail(slug: str):
             page=page,
             page_size=page_size,
             source_filter=source_filter,
-            source_type_filter=source_type_filter,
         )
     
     # Get most generated articles for "Most Popular" section
@@ -102,9 +252,6 @@ def category_detail(slug: str):
         articles=articles,
         sources=sources,
         current_source=source_filter,
-        current_filter=current_filter,
-        source_type_counts=source_type_counts,
-        paid_free_counts=paid_free_counts,
         page=page,
         total_pages=total_pages,
         total_count=total_count,
@@ -174,29 +321,38 @@ def news_refresh_category(slug: str):
 @bp.route("/api/news/preferences", methods=["POST"])
 def save_news_preferences():
     """Save user's preferred news categories (for future personalization)."""
-    from ..models import UserNewsPreference
-    from sqlalchemy import select
-    
+
     user_id = session.get("user_id")
     if not user_id:
         return ("unauthorized", 401)
-    
-    slugs = request.json.get("slugs", []) if request.is_json else request.form.get("slugs", "").split(",")
-    slugs = [s for s in slugs if s]
-    
-    with db_session() as s:
-        pref = s.execute(
-            select(UserNewsPreference).where(UserNewsPreference.user_id == user_id)
-        ).scalar_one_or_none()
-        
-        payload = {"slugs": slugs}
-        if pref is None:
-            pref = UserNewsPreference(user_id=user_id, categories=payload)
-            s.add(pref)
-        else:
-            pref.categories = payload
-    
-    return jsonify({"ok": True})
+
+    if request.is_json:
+        slugs = request.json.get("slugs", []) or []
+        show_only = bool(request.json.get("show_only_my_categories", False))
+        onboarded = bool(request.json.get("onboarded", True))
+    else:
+        raw = (request.form.get("slugs") or "").strip()
+        slugs = [s for s in raw.split(",") if s]
+        show_only = (request.form.get("show_only_my_categories") or "").strip().lower() in {"1", "true", "yes", "on"}
+        onboarded = (request.form.get("onboarded") or "").strip().lower() not in {"0", "false", "no"}
+
+    categories = CategoryService.get_all_categories()
+    allowed = {c["slug"] for c in categories}
+    slugs = [s for s in slugs if s in allowed]
+    slugs = list(dict.fromkeys(slugs))
+
+    # If user has no slugs, forcing show_only doesn't make sense.
+    if not slugs:
+        show_only = False
+
+    _save_user_news_pref(
+        user_id,
+        slugs,
+        show_only_my_categories=show_only,
+        onboarded=onboarded,
+    )
+
+    return jsonify({"ok": True, "slugs": slugs, "show_only_my_categories": show_only, "onboarded": onboarded})
 
 
 @bp.route("/api/extract")

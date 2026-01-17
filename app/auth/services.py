@@ -18,7 +18,7 @@ def absolute_url_for(endpoint: str) -> str:
     """Build an absolute URL for OAuth redirects, preferring APP_BASE_URL."""
     base = current_app.config.get("APP_BASE_URL")
     if base:
-        base = base.rstrip("/")
+        base = str(base).rstrip("/")
         path = url_for(endpoint)
         return f"{base}{path}"
     return url_for(endpoint, _external=True)

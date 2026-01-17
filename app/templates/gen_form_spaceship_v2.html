@@ -1,304 +1,183 @@
 {% extends 'base_spaceship.html' %}
 {% block content %}
-<div class="container pt-6rem">
-      <div class="section">
-        <div class="text-center mb-6">
-          <h1 class="fs-25rem fw-800 mb-1rem c-white">Generate LinkedIn Drafts</h1>
-          <p class="fs-12rem c-white-80">Turn a URL, your text, or a file into LinkedIn‑style drafts.</p>
-        </div>
+{% from 'partials/generation_icons.html' import gen_icon %}
+{% set mode = (prefill_url and 'url') or 'text' %}
 
-        
+<div class="container pt-6rem gen-page">
+  <div class="gen-hero text-center">
+    <h1 class="gen-hero__title">
+      <span class="gen-hero__line1">
+        <span class="gen-hero__static">Generate</span>
+        <span class="gen-hero__typed" id="gen-typed-word">Per</span><span class="gen-hero__cursor" aria-hidden="true">_</span>
+      </span>
+      <span class="gen-hero__line2">LinkedIn Posts Drafts &amp; Visuals</span>
+    </h1>
+  </div>
 
-    <div class="card mb-2">
-      <form id="gen-form" action="/api/generate" method="post" hx-post="/api/generate" hx-target="#results" hx-swap="innerHTML" hx-indicator="#loading" autocomplete="off" enctype="multipart/form-data" hx-encoding="multipart/form-data" hx-on::after-settle="document.getElementById('results') && document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'});">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-        {% set mode = (prefill_url and 'url') or 'text' %}
-        <input type="hidden" name="source_mode" id="source_mode" value="{{ mode }}" />
+  <form
+    id="gen-form"
+    class="gen-form"
+    action="/api/generate"
+    method="post"
+    hx-post="/api/generate"
+    hx-target="#results"
+    hx-swap="innerHTML"
+    hx-indicator="#loading"
+    autocomplete="off"
+    enctype="multipart/form-data"
+    hx-encoding="multipart/form-data"
+    hx-on::after-settle="document.getElementById('results') && document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'});"
+  >
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+    <input type="hidden" name="source_mode" id="source_mode" value="{{ mode }}" />
 
-        <div id="source-area">
-        <div class="form-group">
-          <div class="segmented" id="source-switch" role="tablist" aria-label="Source type">
-            <button type="button" class="segmented__btn" data-mode="text">Text</button>
-            <button type="button" class="segmented__btn" data-mode="url">URL</button>
-            <button type="button" class="segmented__btn" data-mode="file">File</button>
+    {# Defaults for accordion settings #}
+    <input type="hidden" name="hook_type" id="field-hook_type" value="auto" />
+    <input type="hidden" name="persona" id="field-persona" value="auto" />
+    <input type="hidden" name="tone" id="field-tone" value="auto" />
+    <input type="hidden" name="goal" id="field-goal" value="auto" />
+    <input type="hidden" name="length" id="field-length" value="auto" />
+    <input type="hidden" name="ending" id="field-ending" value="auto" />
+
+    {# Footer settings #}
+    <input type="hidden" name="emoji" id="field-emoji" value="no" />
+    <input type="hidden" name="language" id="field-language" value="English" />
+    <input type="hidden" id="gen-fallback-logo" value="{{ url_for('static', filename='images/logos/default.svg') }}" />
+
+    <div class="section gen-section">
+      <div class="gen-grid">
+        <div class="gen-block gen-block--source">
+          <div class="gen-block__header">
+            <div class="gen-block__title">Source</div>
+            <div class="gen-block__subtitle">Choose one: Text, URL, or File</div>
           </div>
-        </div>
 
-          <div class="form-group {% if mode != 'url' %}hidden{% endif %}" id="block-url">
-            <label class="form-label">🔗 Article URL</label>
-            <input type="url" name="url" value="{{ prefill_url or form.url.data or '' }}" class="form-input" placeholder="Insert article URL" />
-            <p class="fs-09rem c-white-60 mt-05">Paste a single public URL. We'll fetch the content.</p>
-            <div class="info-hint mt-05">
-              <span class="info-hint-icon">💡</span>
-              <span class="info-hint-text">Posts are generated from article title & summary. For best results, add your own insights after generation.</span>
-            </div>
+          <div class="gen-segmented" id="source-switch" role="tablist" aria-label="Input source">
+            <button type="button" class="gen-segmented__btn" data-mode="text" role="tab" aria-selected="false">Text</button>
+            <button type="button" class="gen-segmented__btn" data-mode="url" role="tab" aria-selected="false">URL</button>
+            <button type="button" class="gen-segmented__btn" data-mode="file" role="tab" aria-selected="false">File</button>
           </div>
 
-        
-
-          <div class="form-group {% if mode != 'text' %}hidden{% endif %}" id="block-text">
-            <label class="form-label">✍️ Write/Paste Text</label>
-            <textarea name="text" rows="6" class="form-textarea" placeholder="Insert your text here">{{ form.text.data or '' }}</textarea>
-            <p class="fs-09rem c-white-60 mt-05">Provide exactly one source: Text, URL, or File.</p>
+          <div class="gen-source-block {% if mode != 'url' %}hidden{% endif %}" id="block-url">
+            <label class="gen-label" for="url_input">Article URL</label>
+            <input id="url_input" type="url" name="url" value="{{ prefill_url or form.url.data or '' }}" class="gen-input" placeholder="Insert article URL" />
+            <div class="gen-hint">Paste a single public URL. We'll fetch the content.</div>
           </div>
 
-          <div class="form-group {% if mode != 'file' %}hidden{% endif %}" id="block-file">
-            <label class="form-label">📄 Upload File</label>
-            <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-label="Upload file by clicking or dragging">
+          <div class="gen-source-block {% if mode != 'text' %}hidden{% endif %}" id="block-text">
+            <label class="gen-label" for="text_input">Write/Paste Text</label>
+            <textarea id="text_input" name="text" rows="6" class="gen-textarea" placeholder="Insert your text here">{{ form.text.data or '' }}</textarea>
+            <div class="gen-hint">Provide exactly one source: Text, URL, or File.</div>
+          </div>
+
+          <div class="gen-source-block {% if mode != 'file' %}hidden{% endif %}" id="block-file">
+            <label class="gen-label">Upload File</label>
+            <div id="dropzone" class="gen-dropzone" role="button" tabindex="0" aria-label="Upload file by clicking or dragging">
               <input type="file" name="file" id="file_input" hidden accept=".txt,.pdf,.docx" />
-              <div class="dropzone__content">
-                <div class="dropzone__icon">📄</div>
-                <div class="dropzone__text">
-                  <strong>Drag & drop a file</strong> or <span class="dropzone__link">click to choose</span>
-                  <div class="dropzone__hint">Up to 50 MB. Supported: .txt, .pdf, .docx</div>
+              <div class="gen-dropzone__content">
+                <div class="gen-dropzone__icon">📄</div>
+                <div class="gen-dropzone__text">
+                  <strong>Drag &amp; drop a file</strong> or <span class="gen-dropzone__link">click to choose</span>
+                  <div class="gen-dropzone__hint">Up to 50 MB. Supported: .txt, .pdf, .docx</div>
                 </div>
               </div>
-              <div class="dropzone__preview hidden" id="file_preview"></div>
+              <div class="gen-dropzone__preview hidden" id="file_preview"></div>
             </div>
           </div>
         </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">🧲 Hook Type
-              <span title="The opening style of the post; choose the kind of hook you want (e.g., question or contrarian)." class="cursor-help c-white-80">ℹ️</span>
-            </label>
-            <div class="custom-select" data-select-name="hook_type">
-              <button type="button" class="custom-select__button" data-value="{{ form.hook_type.data or 'auto' }}">{{ {'auto':'Auto','question':'Question','contrarian':'Contrarian','numbered':'Numbered','how_to':'How-to','story':'Short Story'}[form.hook_type.data or 'auto'] }}</button>
-              <div class="custom-select__menu">
-                <div class="custom-select__option" data-value="auto">Auto</div>
-                <div class="custom-select__option" data-value="question">Question</div>
-                <div class="custom-select__option" data-value="contrarian">Contrarian</div>
-                <div class="custom-select__option" data-value="numbered">Numbered</div>
-                <div class="custom-select__option" data-value="how_to">How-to</div>
-                <div class="custom-select__option" data-value="story">Short Story</div>
-              </div>
-              <input type="hidden" name="hook_type" value="{{ form.hook_type.data or 'auto' }}" />
-            </div>
+        <div class="gen-block gen-block--settings">
+          <div class="gen-block__header">
+            <div class="gen-block__title">Settings</div>
+            <div class="gen-block__subtitle">Pick a category, then choose a visual card</div>
           </div>
-          <div class="form-group">
-            <label class="form-label">🧠 Model</label>
-            <div class="custom-select" data-select-name="model">
-              <button type="button" class="custom-select__button" data-value="{{ form.model.data or 'claude' }}">{{ {'claude':'Claude 3.5 Sonnet','gpt-5':'ChatGPT 5'}[form.model.data or 'claude'] }}</button>
-              <div class="custom-select__menu">
-                <div class="custom-select__option" data-value="claude">Claude 3.5 Sonnet</div>
-                <div class="custom-select__option" data-value="gpt-5">ChatGPT 5</div>
+
+          <div class="gen-accordion" data-accordion-root>
+            {% for cat in generation_categories %}
+              {% if cat.id == 'goal' %}
+                <hr class="gen-separator" />
+              {% endif %}
+
+              {% set panel_id = 'panel-' ~ cat.id %}
+              {% set btn_id = 'btn-' ~ cat.id %}
+              <div class="gen-accordion__item" data-accordion-item data-category-id="{{ cat.id }}">
+                <button
+                  type="button"
+                  class="gen-accordion__btn"
+                  id="{{ btn_id }}"
+                  aria-expanded="false"
+                  aria-controls="{{ panel_id }}"
+                  data-accordion-button
+                >
+                  <span class="gen-accordion__icon">
+                    {{ gen_icon(cat.id) }}
+                  </span>
+                  <span class="gen-accordion__label">{{ cat.name }}</span>
+                  <span class="gen-accordion__chevron" aria-hidden="true">▾</span>
+                </button>
+
+                <div class="gen-accordion__panel hidden" id="{{ panel_id }}" role="region" aria-labelledby="{{ btn_id }}" data-accordion-panel>
+                  <div class="gen-cards" role="list">
+                    {% for opt in cat.options %}
+                      <button
+                        type="button"
+                        class="gen-card"
+                        data-category="{{ cat.id }}"
+                        data-option="{{ opt.id }}"
+                        role="listitem"
+                        aria-pressed="false"
+                      >
+                        <span class="gen-card__bg">
+                          <img
+                            class="gen-card__img"
+                            src="{{ url_for('static', filename=opt.image_filename) }}"
+                            alt=""
+                            loading="lazy"
+                            width="140"
+                            height="210"
+                          />
+                        </span>
+                        <span class="gen-card__overlay"></span>
+                        <span class="gen-card__text">
+                          <span class="gen-card__name">{{ opt.name }}</span>
+                          <span class="gen-card__desc">{{ opt.description }}</span>
+                        </span>
+                      </button>
+                    {% endfor %}
+                  </div>
+                </div>
               </div>
-              <input type="hidden" name="model" value="{{ form.model.data or 'claude' }}" />
+            {% endfor %}
+          </div>
+
+          <div class="gen-footer-settings">
+            <div class="gen-footer-settings__row">
+              <div class="gen-footer-settings__label">Emoji</div>
+              <div class="gen-toggle" data-toggle="emoji">
+                <button type="button" class="gen-toggle__btn is-active" data-value="no" aria-pressed="true">No</button>
+                <button type="button" class="gen-toggle__btn" data-value="yes" aria-pressed="false">Yes</button>
+              </div>
+            </div>
+
+            <div class="gen-footer-settings__row">
+              <label class="gen-footer-settings__label" for="language_select">Language</label>
+              <select id="language_select" class="gen-select" name="language_select" aria-label="Language">
+                {% for lang in ['English','Spanish','French','German','Portuguese','Italian','Dutch','Japanese','Korean','Chinese'] %}
+                  <option value="{{ lang }}" {% if lang == 'English' %}selected{% endif %}>{{ lang }}</option>
+                {% endfor %}
+              </select>
             </div>
           </div>
         </div>
+      </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">👤 Your Persona</label>
-            <div class="custom-select" data-select-name="persona">
-              <button type="button" class="custom-select__button" data-value="{{ form.persona.data or 'PM' }}">{{ {'PM':'Product Manager','Consultant':'Consultant','Engineer':'Engineer','Founder':'Founder','Marketer':'Marketer','Sales':'Sales'}[form.persona.data or 'PM'] }}</button>
-              <div class="custom-select__menu">
-                <div class="custom-select__option" data-value="PM">Product Manager</div>
-                <div class="custom-select__option" data-value="Consultant">Consultant</div>
-                <div class="custom-select__option" data-value="Engineer">Engineer</div>
-                <div class="custom-select__option" data-value="Founder">Founder</div>
-                <div class="custom-select__option" data-value="Marketer">Marketer</div>
-                <div class="custom-select__option" data-value="Sales">Sales</div>
-              </div>
-              <input type="hidden" name="persona" value="{{ form.persona.data or 'PM' }}" />
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">🎭 Tone of Voice</label>
-            <div class="custom-select" data-select-name="tone">
-              <button type="button" class="custom-select__button" data-value="{{ form.tone.data or 'analytical' }}">{{ {'analytical':'Analytical','bold':'Bold','conversational':'Conversational','storytelling':'Storytelling','data-driven':'Data-driven'}[form.tone.data or 'analytical'] }}</button>
-              <div class="custom-select__menu">
-                <div class="custom-select__option" data-value="analytical">Analytical</div>
-                <div class="custom-select__option" data-value="bold">Bold</div>
-                <div class="custom-select__option" data-value="conversational">Conversational</div>
-                <div class="custom-select__option" data-value="storytelling">Storytelling</div>
-                <div class="custom-select__option" data-value="data-driven">Data-driven</div>
-              </div>
-              <input type="hidden" name="tone" value="{{ form.tone.data or 'analytical' }}" />
-            </div>
-          </div>
-        </div>
-
-        <div class="text-center mt-4">
-          <button type="submit" class="btn btn-cta py-12rem px-3rem fs-12rem">
-            ✨ Generate Posts
-          </button>
-        </div>
-      </form>
-      <!-- Client-side extractors -->
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-
-      <script>
-        if (window.pdfjsLib && pdfjsLib.GlobalWorkerOptions) {
-          pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.min.js';
-        }
-        (function() {
-          const form = document.getElementById('gen-form');
-          const blockUrl = document.getElementById('block-url');
-          const blockText = document.getElementById('block-text');
-          const blockFile = document.getElementById('block-file');
-          const seg = document.getElementById('source-switch');
-          const sourceMode = document.getElementById('source_mode');
-          const fileInput = document.getElementById('file_input');
-          const dropzone = document.getElementById('dropzone');
-          const filePreview = document.getElementById('file_preview');
-          const textArea = form.querySelector('textarea[name="text"]');
-
-          function clearSources() {
-            const urlEl = form.querySelector('input[name="url"]');
-            const textEl = form.querySelector('textarea[name="text"]');
-            if (urlEl) { urlEl.value = ''; }
-            if (textEl) { textEl.value = ''; }
-            if (fileInput) { 
-              fileInput.value = ''; 
-              if (filePreview) {
-                filePreview.classList.add('hidden');
-                filePreview.textContent = '';
-              }
-            }
-          }
-
-          function setMode(mode){
-            const prev = sourceMode.value;
-            sourceMode.value = mode;
-            if (prev && prev !== mode) { clearSources(); }
-            
-            // Helper to toggle visibility
-            const toggle = (el, show) => {
-              if (!el) return;
-              // Clear inline display style if any, relying on classes
-              el.style.display = '';
-              if (show) el.classList.remove('hidden');
-              else el.classList.add('hidden');
-            };
-
-            toggle(blockUrl, mode === 'url');
-            toggle(blockText, mode === 'text');
-            toggle(blockFile, mode === 'file');
-
-            const urlEl = form.querySelector('input[name="url"]');
-            const textEl = form.querySelector('textarea[name="text"]');
-            const fileEl = document.getElementById('file_input');
-            if (urlEl) urlEl.disabled = mode !== 'url';
-            if (textEl) textEl.disabled = mode !== 'text';
-            if (fileEl) fileEl.disabled = mode !== 'file';
-            seg.querySelectorAll('.segmented__btn').forEach(btn=>{
-              btn.classList.toggle('active', btn.getAttribute('data-mode')===mode);
-            });
-          }
-          seg.addEventListener('click', function(e){
-            const btn = e.target.closest('.segmented__btn');
-            if(!btn) return;
-            setMode(btn.getAttribute('data-mode'));
-          });
-          // Dropzone interactions
-          function openPicker(){ fileInput && fileInput.click(); }
-          function onFilesSelected(files){
-            if (!files || !files.length) return;
-            const f = files[0];
-            const max = 50 * 1024 * 1024;
-            if (f.size > max) {
-              alert('File is larger than 50 MB.');
-              fileInput.value = '';
-              return;
-            }
-            filePreview.textContent = 'Selected: ' + f.name + ' (' + Math.round(f.size/1024/1024*10)/10 + ' MB)';
-            filePreview.classList.remove('hidden');
-          }
-          if (dropzone) {
-            dropzone.addEventListener('click', function(){ setMode('file'); openPicker(); });
-            dropzone.addEventListener('keydown', function(e){ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); setMode('file'); openPicker(); }});
-            dropzone.addEventListener('dragover', function(e){ e.preventDefault(); dropzone.classList.add('dragover'); });
-            dropzone.addEventListener('dragleave', function(){ dropzone.classList.remove('dragover'); });
-            dropzone.addEventListener('drop', function(e){
-              e.preventDefault();
-              dropzone.classList.remove('dragover');
-              if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length){
-                setMode('file');
-                // Safely assign dropped file(s) to the input using DataTransfer API
-                try {
-                  const dt = new DataTransfer();
-                  dt.items.add(e.dataTransfer.files[0]);
-                  fileInput.files = dt.files;
-                } catch (_) {
-                  // Fallback: ignore assignment (some browsers may restrict); user can click to choose
-                }
-                onFilesSelected(e.dataTransfer.files);
-              }
-            });
-          }
-          async function extractFileToText(file){
-            const name = (file && file.name || '').toLowerCase();
-            const ext = name.split('.').pop();
-            const buf = await file.arrayBuffer();
-            try {
-              if (ext === 'txt') {
-                return new TextDecoder('utf-8',{fatal:false}).decode(new Uint8Array(buf));
-              }
-              if (ext === 'pdf') {
-                const pdf = await pdfjsLib.getDocument({data: buf}).promise;
-                let out = '';
-                const maxPages = Math.min(pdf.numPages, 50);
-                for (let p=1; p<=maxPages; p++){
-                  const page = await pdf.getPage(p);
-                  const tc = await page.getTextContent();
-                  const line = tc.items.map(it => it.str).join(' ');
-                  out += (line + '\n');
-                  if (out.length > 9000) break;
-                }
-                return out;
-              }
-              if (ext === 'docx') {
-                const res = await mammoth.extractRawText({arrayBuffer: buf});
-                return res && res.value || '';
-              }
-            } catch(e){ return ''; }
-            return '';
-          }
-
-          if (fileInput) {
-            fileInput.addEventListener('change', async function(e){
-              try {
-                setMode('file'); onFilesSelected(e.target.files);
-                const f = e.target.files && e.target.files[0];
-                if (!f) return;
-                const text = (await extractFileToText(f) || '').trim();
-                if (text.length) {
-                  setMode('text');
-                  textArea.value = text.slice(0, 8000);
-                  fileInput.value = '';
-                  filePreview.textContent = 'Extracted ' + text.length + ' characters to Text.';
-                  filePreview.classList.remove('hidden');
-                }
-              } catch(_) { /* no-op, allow normal submit */ }
-            });
-          }
-
-          // Initialize default mode
-          setMode(sourceMode.value || 'text');
-
-          document.querySelectorAll('.custom-select').forEach(function(wrapper){
-            const button = wrapper.querySelector('.custom-select__button');
-            const menu = wrapper.querySelector('.custom-select__menu');
-            const hidden = wrapper.querySelector('input[type="hidden"]');
-            function closeAll(ev){ if (!wrapper.contains(ev.target)) menu.classList.remove('open'); }
-            button.addEventListener('click', function(){ menu.classList.toggle('open'); });
-            menu.querySelectorAll('.custom-select__option').forEach(function(opt){
-              opt.addEventListener('click', function(){
-                const val = this.getAttribute('data-value');
-                const label = this.textContent.trim();
-                hidden.value = val; button.textContent = label; button.setAttribute('data-value', val); menu.classList.remove('open');
-              });
-            });
-            document.addEventListener('click', closeAll);
-          });
-        })();
-      </script>
+      <div class="text-center mt-4">
+        <button type="submit" class="btn btn-cta py-12rem px-3rem fs-12rem">
+          ✨ Generate Posts
+        </button>
+      </div>
     </div>
-  </div>
+  </form>
 
   <div id="loading" class="htmx-indicator text-center mt-3">
     <div class="card">
@@ -309,16 +188,9 @@
 
   <div id="results" class="mt-3"></div>
 </div>
-<script>
-  document.addEventListener('htmx:afterSettle', function(e){
-    try {
-      var results = document.getElementById('results');
-      if (results && results.firstElementChild) {
-        results.scrollIntoView({behavior:'smooth', block:'start'});
-      }
-    } catch(_){}
-  });
-</script>
+
+<!-- Client-side extractors -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="{{ url_for('static', filename='js/generation_page.js') }}"></script>
 {% endblock %}
-
-
