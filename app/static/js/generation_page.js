@@ -5,11 +5,36 @@
 // - Source mode switching (Text/URL/File) + optional client-side extraction
 
 (function () {
+  const STORAGE_KEY = "linkerhero_generation_page_v1";
+
   function qs(sel, root) {
     return (root || document).querySelector(sel);
   }
   function qsa(sel, root) {
     return Array.from((root || document).querySelectorAll(sel));
+  }
+
+  function safeJsonParse(s) {
+    try {
+      return JSON.parse(s);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function loadState() {
+    const raw = window.localStorage ? window.localStorage.getItem(STORAGE_KEY) : null;
+    return (raw && safeJsonParse(raw)) || {};
+  }
+
+  function saveState(patch) {
+    try {
+      const prev = loadState();
+      const next = { ...prev, ...patch, _ts: Date.now() };
+      window.localStorage && window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch (_) {
+      // ignore storage failures
+    }
   }
 
   function initTyping() {
@@ -64,6 +89,51 @@
     const root = qs("[data-accordion-root]");
     if (!root) return;
 
+    async function preloadPanel(panel) {
+      // Load visuals only once per panel per page session
+      if (panel.dataset.preloaded === "1") return;
+      panel.dataset.preloaded = "1";
+
+      const imgs = Array.from(panel.querySelectorAll("img.gen-card__img"));
+      if (!imgs.length) return;
+
+      const loadingEl = panel.querySelector("[data-panel-loading]");
+
+      // Only eagerly decode the first set (what user sees first). Keep it fast.
+      const firstBatch = imgs.slice(0, 12);
+      firstBatch.forEach((img) => {
+        try {
+          img.loading = "eager";
+          img.fetchPriority = "high";
+        } catch (_) {}
+      });
+
+      // Show a lightweight spinner overlay on the panel until decoded.
+      const minShowMs = 160;
+      const start = Date.now();
+      if (loadingEl) loadingEl.classList.remove("hidden");
+
+      const decodePromises = firstBatch.map((img) => {
+        if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+        if (typeof img.decode === "function") return img.decode().catch(() => {});
+        return new Promise((res) => {
+          img.addEventListener("load", () => res(), { once: true });
+          img.addEventListener("error", () => res(), { once: true });
+        });
+      });
+
+      await Promise.race([
+        Promise.allSettled(decodePromises),
+        new Promise((res) => setTimeout(res, 1200)),
+      ]);
+
+      const elapsed = Date.now() - start;
+      if (elapsed < minShowMs) {
+        await new Promise((res) => setTimeout(res, minShowMs - elapsed));
+      }
+      if (loadingEl) loadingEl.classList.add("hidden");
+    }
+
     function closeItem(item) {
       const btn = qs("[data-accordion-button]", item);
       const panel = qs("[data-accordion-panel]", item);
@@ -84,6 +154,10 @@
       if (panel) panel.classList.remove("hidden");
       item.classList.add("is-open");
       if (btn) btn.classList.add("is-active");
+
+      if (panel) {
+        preloadPanel(panel);
+      }
     }
 
     root.addEventListener("click", (e) => {
@@ -100,6 +174,10 @@
     // Open the first accordion by default for discoverability
     const first = qs("[data-accordion-item]", root);
     if (first) openItem(first);
+  }
+
+  function initCarousels() {
+    // Carousel removed; keep function for backward compatibility (no-op)
   }
 
   function initCards() {
@@ -129,6 +207,7 @@
     function setHidden(category, optionId) {
       const field = qs(`#field-${category}`);
       if (field) field.value = optionId;
+      saveState({ [`setting_${category}`]: optionId });
     }
 
     function setSelectedCard(category, optionId) {
@@ -156,6 +235,17 @@
       if (!category) return;
       setSelectedCard(category, "auto");
     });
+
+    // Restore selection state
+    const st = loadState();
+    ["hook_type", "persona", "tone", "goal", "length", "ending"].forEach((cat) => {
+      const v = st[`setting_${cat}`];
+      if (typeof v === "string" && v) {
+        const hidden = qs(`#field-${cat}`);
+        if (hidden) hidden.value = v;
+        setSelectedCard(cat, v);
+      }
+    });
   }
 
   function initFooterSettings() {
@@ -168,6 +258,7 @@
       btn.addEventListener("click", () => {
         const val = btn.getAttribute("data-value") || "no";
         if (emojiHidden) emojiHidden.value = val;
+        saveState({ emoji: val });
         qsa('[data-toggle="emoji"] .gen-toggle__btn').forEach((b) => {
           const active = b === btn;
           b.classList.toggle("is-active", active);
@@ -181,9 +272,25 @@
       const update = () => {
         const v = languageSelect.value || "English";
         if (languageHidden) languageHidden.value = v;
+        saveState({ language: v });
       };
       languageSelect.addEventListener("change", update);
       update();
+    }
+
+    // Restore footer settings
+    const st = loadState();
+    if (emojiHidden && typeof st.emoji === "string") {
+      emojiHidden.value = st.emoji;
+      qsa('[data-toggle="emoji"] .gen-toggle__btn').forEach((b) => {
+        const active = (b.getAttribute("data-value") || "no") === st.emoji;
+        b.classList.toggle("is-active", active);
+        b.setAttribute("aria-pressed", active ? "true" : "false");
+      });
+    }
+    if (languageSelect && typeof st.language === "string") {
+      languageSelect.value = st.language;
+      if (languageHidden) languageHidden.value = st.language;
     }
   }
 
@@ -207,11 +314,13 @@
       else el.classList.add("hidden");
     }
 
+    let suppressClear = false;
+
     function clearSources() {
+      // Keep text persistent; only clear URL/file when switching modes.
+      if (suppressClear) return;
       const urlEl = qs('input[name="url"]', form);
-      const textEl = qs('textarea[name="text"]', form);
       if (urlEl) urlEl.value = "";
-      if (textEl) textEl.value = "";
       if (fileInput) {
         fileInput.value = "";
         if (filePreview) {
@@ -227,13 +336,12 @@
       if (prev && prev !== mode) clearSources();
 
       toggle(blockUrl, mode === "url");
-      toggle(blockText, mode === "text");
       toggle(blockFile, mode === "file");
 
       const urlEl = qs('input[name="url"]', form);
       const textEl = qs('textarea[name="text"]', form);
       if (urlEl) urlEl.disabled = mode !== "url";
-      if (textEl) textEl.disabled = mode !== "text";
+      if (textEl) textEl.disabled = false;
       if (fileInput) fileInput.disabled = mode !== "file";
 
       if (seg) {
@@ -242,6 +350,15 @@
           btn.classList.toggle("is-active", isActive);
           btn.setAttribute("aria-selected", isActive ? "true" : "false");
         });
+      }
+
+      saveState({ source_mode: mode });
+
+      // Text box is optional ONLY when URL/File is selected.
+      // In Text mode, it's the primary input.
+      const textLabel = qs('label[for="text_input"]', form);
+      if (textLabel) {
+        textLabel.textContent = mode === "text" ? "Write/Paste Text" : "Write/Paste Text (optional)";
       }
     }
 
@@ -375,12 +492,27 @@
     }
 
     // Initial mode
-    setMode((sourceMode && sourceMode.value) || "text");
+    const st = loadState();
+    const restoredMode = (typeof st.source_mode === "string" && st.source_mode) || (sourceMode && sourceMode.value) || "text";
+    suppressClear = true;
+    setMode(restoredMode);
+    suppressClear = false;
+
+    // Restore text/url/prompt fields (file cannot be restored by browser security)
+    const urlEl = qs('input[name="url"]', form);
+    const textEl = qs('textarea[name="text"]', form);
+    if (urlEl && typeof st.url === "string") urlEl.value = st.url;
+    if (textEl && typeof st.text === "string") textEl.value = st.text;
+
+    // Save on input
+    urlEl && urlEl.addEventListener("input", () => saveState({ url: urlEl.value || "" }));
+    textEl && textEl.addEventListener("input", () => saveState({ text: textEl.value || "" }));
   }
 
   document.addEventListener("DOMContentLoaded", function () {
     initTyping();
     initAccordions();
+    initCarousels();
     initCards();
     initFooterSettings();
     initSourceMode();

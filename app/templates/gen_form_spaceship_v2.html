@@ -49,13 +49,19 @@
         <div class="gen-block gen-block--source">
           <div class="gen-block__header">
             <div class="gen-block__title">Source</div>
-            <div class="gen-block__subtitle">Choose one: Text, URL, or File</div>
+            <div class="gen-block__subtitle">Choose your source and optional prompt</div>
           </div>
 
-          <div class="gen-segmented" id="source-switch" role="tablist" aria-label="Input source">
-            <button type="button" class="gen-segmented__btn" data-mode="text" role="tab" aria-selected="false">Text</button>
-            <button type="button" class="gen-segmented__btn" data-mode="url" role="tab" aria-selected="false">URL</button>
-            <button type="button" class="gen-segmented__btn" data-mode="file" role="tab" aria-selected="false">File</button>
+          <div class="gen-source-top">
+            <div class="gen-segmented" id="source-switch" role="tablist" aria-label="Input source">
+              <button type="button" class="gen-segmented__btn" data-mode="text" role="tab" aria-selected="false">Text</button>
+              <button type="button" class="gen-segmented__btn" data-mode="url" role="tab" aria-selected="false">URL</button>
+              <button type="button" class="gen-segmented__btn" data-mode="file" role="tab" aria-selected="false">File</button>
+            </div>
+            <div class="gen-source-top__hint">
+              Ready to be inspired? Find shareable stories in our
+              <a class="gen-link" href="/news">Content Fuel</a> feed🌟
+            </div>
           </div>
 
           <div class="gen-source-block {% if mode != 'url' %}hidden{% endif %}" id="block-url">
@@ -64,10 +70,9 @@
             <div class="gen-hint">Paste a single public URL. We'll fetch the content.</div>
           </div>
 
-          <div class="gen-source-block {% if mode != 'text' %}hidden{% endif %}" id="block-text">
+          <div class="gen-source-block {% if mode == 'text' %}{% else %}{% endif %}" id="block-text">
             <label class="gen-label" for="text_input">Write/Paste Text</label>
             <textarea id="text_input" name="text" rows="6" class="gen-textarea" placeholder="Insert your text here">{{ form.text.data or '' }}</textarea>
-            <div class="gen-hint">Provide exactly one source: Text, URL, or File.</div>
           </div>
 
           <div class="gen-source-block {% if mode != 'file' %}hidden{% endif %}" id="block-file">
@@ -84,6 +89,8 @@
               <div class="gen-dropzone__preview hidden" id="file_preview"></div>
             </div>
           </div>
+
+          {# Prompt box removed (per UX decision) #}
         </div>
 
         <div class="gen-block gen-block--settings">
@@ -117,7 +124,10 @@
                 </button>
 
                 <div class="gen-accordion__panel hidden" id="{{ panel_id }}" role="region" aria-labelledby="{{ btn_id }}" data-accordion-panel>
-                  <div class="gen-cards" role="list">
+                  <div class="gen-panel-loading hidden" data-panel-loading aria-live="polite" aria-label="Loading">
+                    <div class="spinner gen-panel-loading__spinner" aria-hidden="true"></div>
+                  </div>
+                  <div class="gen-cards" role="list" data-cards-grid>
                     {% for opt in cat.options %}
                       <button
                         type="button"
@@ -151,21 +161,22 @@
           </div>
 
           <div class="gen-footer-settings">
-            <div class="gen-footer-settings__row">
-              <div class="gen-footer-settings__label">Emoji</div>
-              <div class="gen-toggle" data-toggle="emoji">
-                <button type="button" class="gen-toggle__btn is-active" data-value="no" aria-pressed="true">No</button>
-                <button type="button" class="gen-toggle__btn" data-value="yes" aria-pressed="false">Yes</button>
+            <div class="gen-footer-settings__row gen-footer-settings__row--controls">
+              <div class="gen-footer-settings__group">
+                <div class="gen-footer-settings__label">Emoji</div>
+                <div class="gen-toggle" data-toggle="emoji">
+                  <button type="button" class="gen-toggle__btn is-active" data-value="no" aria-pressed="true">No</button>
+                  <button type="button" class="gen-toggle__btn" data-value="yes" aria-pressed="false">Yes</button>
+                </div>
               </div>
-            </div>
-
-            <div class="gen-footer-settings__row">
-              <label class="gen-footer-settings__label" for="language_select">Language</label>
-              <select id="language_select" class="gen-select" name="language_select" aria-label="Language">
-                {% for lang in ['English','Spanish','French','German','Portuguese','Italian','Dutch','Japanese','Korean','Chinese'] %}
-                  <option value="{{ lang }}" {% if lang == 'English' %}selected{% endif %}>{{ lang }}</option>
-                {% endfor %}
-              </select>
+              <div class="gen-footer-settings__group">
+                <label class="gen-footer-settings__label" for="language_select">Language</label>
+                <select id="language_select" class="gen-select gen-select--compact" name="language_select" aria-label="Language">
+                  {% for lang in ['English','Spanish','French','German','Portuguese','Italian','Dutch','Japanese','Korean','Chinese'] %}
+                    <option value="{{ lang }}" {% if lang == 'English' %}selected{% endif %}>{{ lang }}</option>
+                  {% endfor %}
+                </select>
+              </div>
             </div>
           </div>
         </div>

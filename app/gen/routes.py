@@ -147,6 +147,7 @@ def api_generate():
     generation_succeeded = False
     
     url = (request.form.get("url") or form.url.data or "").strip()
+    user_prompt = (request.form.get("prompt") or "").strip()
     article_id = ""  # legacy, removed from UI
     persona = (request.form.get("persona") or form.persona.data or "auto").strip()
     tone = (request.form.get("tone") or form.tone.data or "auto").strip()
@@ -320,6 +321,7 @@ def api_generate():
                 length=length,
                 ending=ending,
                 emoji=emoji,
+                user_prompt=user_prompt,
                 language=final_language,
                 max_tokens=max_tokens,
             )
@@ -341,6 +343,7 @@ def api_generate():
             length=length,
             ending=ending,
             emoji=emoji,
+            user_prompt=user_prompt,
             language=final_language,
         )
     # If the model responded with our sentinel indicating insufficient grounding, return error
@@ -379,7 +382,8 @@ def api_generate():
                     model=("gpt-5" if use_gpt else "claude-3-7-sonnet-20250219"),
                     prompt=(
                         f"persona={persona}, tone={tone}, hook_type={hook_type}, "
-                        f"goal={goal}, length={length}, ending={ending}, emoji={emoji}, language={final_language}"
+                        f"goal={goal}, length={length}, ending={ending}, emoji={emoji}, language={final_language}, "
+                        f"user_prompt={user_prompt[:160]}"
                     ),
                     draft_text=v,
                     persona=persona,

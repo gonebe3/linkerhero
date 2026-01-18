@@ -26,6 +26,7 @@ class AnthropicProvider:
         length: str | None = None,
         ending: str | None = None,
         emoji: str | None = None,
+        user_prompt: str | None = None,
         language: str | None = None,
     ) -> List[str]:
         if not self.client:
@@ -72,6 +73,11 @@ class AnthropicProvider:
             ending_clause = " Ending: Auto (choose the best ending style for the goal)."
 
         language_clause = f" Write the post in {language}." if language else " Write in the same language as the Source."
+        user_prompt_clause = (
+            f" Additional user instructions: {user_prompt.strip()}."
+            if user_prompt and user_prompt.strip()
+            else ""
+        )
         system = (
             "You write concise, topic-grounded LinkedIn posts. Start with a strong hook. 2–4 short paragraphs. "
             + persona_clause
@@ -80,6 +86,7 @@ class AnthropicProvider:
             + length_clause
             + ending_clause
             + emoji_clause
+            + user_prompt_clause
             + f" Include keywords: {', '.join(keywords or [])}. "
             + " Keep paragraphs under 60 words."
             + hook_clause
@@ -151,6 +158,7 @@ class AnthropicProvider:
         length: str | None = None,
         ending: str | None = None,
         emoji: str | None = None,
+        user_prompt: str | None = None,
         language: str | None = None,
         max_tokens: int = 600,
     ) -> str:
@@ -193,6 +201,11 @@ class AnthropicProvider:
         else:
             ending_clause = " Ending: Auto (choose the best ending style for the goal)."
         language_clause = f" Write the post in {language}." if language else " Write in the language of the Facts."
+        user_prompt_clause = (
+            f" Additional user instructions: {user_prompt.strip()}."
+            if user_prompt and user_prompt.strip()
+            else ""
+        )
         system = (
             "You write concise, topic-grounded LinkedIn posts. Start with a strong hook. 2–4 short paragraphs. "
             + persona_clause
@@ -205,6 +218,7 @@ class AnthropicProvider:
             + hook_clause
             + " Output only the post text. Do not include headings."
             + language_clause
+            + user_prompt_clause
         )
         facts_text = "\n- " + "\n- ".join(facts[:20])
         prompt = (
