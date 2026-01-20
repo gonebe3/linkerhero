@@ -109,11 +109,15 @@ def login_google_callback():
     sub = None
     email = ""
     given_name = None
+    full_name = None
+    picture = None
     try:
         prof = httpx.get("https://openidconnect.googleapis.com/v1/userinfo", headers=headers, timeout=20.0).json()
         sub = prof.get("sub")
         email = (prof.get("email") or "").lower().strip()
         given_name = prof.get("given_name")
+        full_name = prof.get("name")
+        picture = prof.get("picture")
     except Exception:
         prof = {}
 
@@ -147,6 +151,9 @@ def login_google_callback():
                 email=email or f"gg_{sub}@example.local",
                 display_name=given_name
                 or (email.split("@")[0].split(".")[0].split("_")[0].capitalize() if email else None),
+                full_name=full_name or None,
+                profile_image_url=picture or None,
+                profile_source="google",
                 oauth_provider="google",
                 oauth_sub=sub,
                 plan="free",
@@ -159,6 +166,12 @@ def login_google_callback():
         else:
             if given_name and (not getattr(user, "display_name", None)):
                 user.display_name = given_name
+            if full_name and (not getattr(user, "full_name", None)):
+                user.full_name = full_name
+            if picture and (not getattr(user, "profile_image_url", None)):
+                user.profile_image_url = picture
+            if not getattr(user, "profile_source", None):
+                user.profile_source = "google"
             if email and not user.email_verified_at:
                 user.email_verified_at = datetime.now(timezone.utc)
         session["user_id"] = user.id

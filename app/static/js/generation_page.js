@@ -184,6 +184,22 @@
     const form = qs("#gen-form");
     if (!form) return;
 
+    function optionLabelFromDom(category, optionId) {
+      if (!category || !optionId) return optionId || "";
+      if (optionId === "auto") return "Auto";
+      const card = qs(`.gen-card[data-category="${category}"][data-option="${optionId}"]`, form);
+      const nameEl = card && qs(".gen-card__name", card);
+      const label = (nameEl && nameEl.textContent && nameEl.textContent.trim()) || "";
+      return label || optionId;
+    }
+
+    function setAccordionValue(category, optionId) {
+      const el = qs(`[data-accordion-value="${category}"]`, form);
+      if (!el) return;
+      const label = optionLabelFromDom(category, optionId);
+      el.textContent = `Option: ${label}`;
+    }
+
     // If any card image is missing, gracefully fall back to a stock placeholder with logo in top third.
     const fallbackLogo = (qs("#gen-fallback-logo") && qs("#gen-fallback-logo").value) || "";
     qsa(".gen-card__img", form).forEach((img) => {
@@ -208,6 +224,7 @@
       const field = qs(`#field-${category}`);
       if (field) field.value = optionId;
       saveState({ [`setting_${category}`]: optionId });
+      setAccordionValue(category, optionId);
     }
 
     function setSelectedCard(category, optionId) {
@@ -234,6 +251,7 @@
       const category = card.getAttribute("data-category");
       if (!category) return;
       setSelectedCard(category, "auto");
+      setAccordionValue(category, "auto");
     });
 
     // Restore selection state
@@ -244,6 +262,7 @@
         const hidden = qs(`#field-${cat}`);
         if (hidden) hidden.value = v;
         setSelectedCard(cat, v);
+        setAccordionValue(cat, v);
       }
     });
   }
@@ -252,6 +271,7 @@
     const emojiHidden = qs("#field-emoji");
     const languageHidden = qs("#field-language");
     const languageSelect = qs("#language_select");
+    const modelHidden = qs("#field-model");
 
     // Emoji toggle
     qsa('[data-toggle="emoji"] .gen-toggle__btn').forEach((btn) => {
@@ -260,6 +280,20 @@
         if (emojiHidden) emojiHidden.value = val;
         saveState({ emoji: val });
         qsa('[data-toggle="emoji"] .gen-toggle__btn').forEach((b) => {
+          const active = b === btn;
+          b.classList.toggle("is-active", active);
+          b.setAttribute("aria-pressed", active ? "true" : "false");
+        });
+      });
+    });
+
+    // Model toggle
+    qsa('[data-toggle="model"] .gen-toggle__btn').forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const val = (btn.getAttribute("data-value") || "claude-sonnet-4-5").toLowerCase();
+        if (modelHidden) modelHidden.value = val;
+        saveState({ model: val });
+        qsa('[data-toggle="model"] .gen-toggle__btn').forEach((b) => {
           const active = b === btn;
           b.classList.toggle("is-active", active);
           b.setAttribute("aria-pressed", active ? "true" : "false");
@@ -284,6 +318,14 @@
       emojiHidden.value = st.emoji;
       qsa('[data-toggle="emoji"] .gen-toggle__btn').forEach((b) => {
         const active = (b.getAttribute("data-value") || "no") === st.emoji;
+        b.classList.toggle("is-active", active);
+        b.setAttribute("aria-pressed", active ? "true" : "false");
+      });
+    }
+    if (modelHidden && typeof st.model === "string") {
+      modelHidden.value = st.model;
+      qsa('[data-toggle="model"] .gen-toggle__btn').forEach((b) => {
+        const active = (b.getAttribute("data-value") || "").toLowerCase() === st.model.toLowerCase();
         b.classList.toggle("is-active", active);
         b.setAttribute("aria-pressed", active ? "true" : "false");
       });
@@ -503,6 +545,24 @@
     const textEl = qs('textarea[name="text"]', form);
     if (urlEl && typeof st.url === "string") urlEl.value = st.url;
     if (textEl && typeof st.text === "string") textEl.value = st.text;
+
+    // If we arrived with /generate?url=... (e.g., from Content Fuel), treat it as authoritative:
+    // - force URL mode
+    // - prefill URL field
+    // - persist to localStorage so subsequent navigations keep it
+    try {
+      const qsUrl = new URLSearchParams(window.location.search || "").get("url");
+      const prefillUrl = (qsUrl || (urlEl && urlEl.value) || "").trim();
+      if (prefillUrl && urlEl) {
+        suppressClear = true;
+        setMode("url");
+        urlEl.value = prefillUrl;
+        saveState({ url: prefillUrl, source_mode: "url" });
+        suppressClear = false;
+      }
+    } catch (_) {
+      // ignore
+    }
 
     // Save on input
     urlEl && urlEl.addEventListener("input", () => saveState({ url: urlEl.value || "" }));

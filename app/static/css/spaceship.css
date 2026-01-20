@@ -20,6 +20,15 @@ body {
   min-height: 100vh;
 }
 
+/* Generation page: add subtle darkening (10% black) to improve contrast without changing layout */
+body.page-generate {
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.20), rgba(0, 0, 0, 0.20)),
+    linear-gradient(90deg, #003f5b, #2b4b7d, #5f5195, #98509d, #cc4c91, #f25375, #ff6f4e);
+  background-size: 100% 100%, 400% 400%;
+  background-attachment: fixed;
+}
+
 @keyframes gradientShift {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
@@ -3169,8 +3178,8 @@ body {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.85rem 0.9rem;
+  gap: 0.55rem;
+  padding: 0.6rem 0.7rem;
   border-radius: 14px;
   border: 1px solid var(--gen-glass-stroke);
   background: var(--gen-glass-bg);
@@ -3192,8 +3201,8 @@ body {
 }
 
 .gen-page .gen-accordion__icon {
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3201,6 +3210,11 @@ body {
   background: rgba(0, 0, 0, 0.18);
   border: 1px solid rgba(255, 255, 255, 0.25);
   flex: 0 0 auto;
+}
+
+.gen-page .gen-accordion__icon svg {
+  width: 16px;
+  height: 16px;
 }
 
 .gen-page .gen-accordion__btn.is-active .gen-accordion__icon {
@@ -3223,7 +3237,26 @@ body {
 .gen-page .gen-accordion__label {
   flex: 1 1 auto;
   text-align: left;
-  font-size: 0.95rem;
+  font-size: 0.82rem;
+}
+
+.gen-page .gen-accordion__value {
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.80);
+  padding: 0.35rem 0.6rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.18);
+  max-width: 45%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 700px) {
+  .gen-page .gen-accordion__value { display: none; }
 }
 
 .gen-page .gen-accordion__chevron {
@@ -3521,3 +3554,101 @@ body {
   background-clip: text;
 }
 
+
+/* LinkedIn-like preview (generation results) */
+.li-preview {
+  margin-top: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+}
+
+.li-preview__header {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.9rem 1rem 0.65rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.li-preview__avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  overflow: hidden;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.li-preview__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.li-preview__avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.9);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.55), rgba(236, 72, 153, 0.45));
+}
+
+.li-preview__meta {
+  min-width: 0;
+}
+
+.li-preview__name {
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.li-preview__sub {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.9rem;
+  margin-top: 0.2rem;
+}
+
+.li-preview__form {
+  padding: 0.75rem 1rem 1rem 1rem;
+}
+
+.li-preview__textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 160px;
+  border-radius: 12px;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.12);
+  color: rgba(255, 255, 255, 0.92);
+  font-family: inherit;
+  line-height: 1.45;
+  outline: none;
+}
+
+.li-preview__textarea:focus {
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.18);
+}
+
+.li-preview__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 0.75rem;
+}
+
+.li-preview__hint {
+  text-align: center;
+  margin-top: 0.65rem;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.65);
+}

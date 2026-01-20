@@ -2,12 +2,9 @@
 
 {% macro gen_icon(category_id) -%}
   {%- if category_id == 'hook_type' -%}
-    {# Fishing hook (clear hook + barb) #}
-    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
-      <path d="M12 3v10.2c0 3-2.4 5.4-5.4 5.4H6a2.5 2.5 0 1 1 0-5h2.4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M8.4 13.6l-1.4 1.4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
-      <path d="M8.4 13.6l1.2 1.2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
-      <path d="M12 3c2.1 0 3.8 1.7 3.8 3.8v1.2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+    {# Hook icon (based on provided SVG) #}
+    <svg viewBox="0 0 512 512" width="20" height="20" aria-hidden="true" focusable="false">
+      <path fill="currentColor" d="M298.351,337.541l42.983,22.756c0,41.825-34.027,75.852-75.852,75.852s-75.852-34.027-75.852-75.852V99.246 c11.629-10.423,18.963-25.547,18.963-42.357C208.593,25.52,183.072,0,151.704,0c-31.369,0-56.889,25.52-56.889,56.889 c0,16.809,7.334,31.932,18.963,42.357v261.05c0,83.783,67.92,151.704,151.704,151.704s151.704-67.92,151.704-151.704V226.291 L298.351,337.541z M151.704,75.852c-10.456,0-18.963-8.507-18.963-18.963s8.507-18.963,18.963-18.963s18.963,8.507,18.963,18.963 S162.16,75.852,151.704,75.852z"/>
     </svg>
   {%- elif category_id == 'persona' -%}
     {# Theatrical mask #}

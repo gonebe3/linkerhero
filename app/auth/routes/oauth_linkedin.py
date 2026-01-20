@@ -51,11 +51,16 @@ def share_linkedin_start():
     with db_session() as session_db:
         gen = session_db.get(Generation, gen_id)
         if not gen or gen.user_id != uid:
+            flash(
+                "This draft belongs to a different LinkerHero account. Please log out and sign in with the account that generated it.",
+                "error",
+            )
             return redirect(url_for("main.dashboard"))
     client_id = current_app.config.get("LINKEDIN_CLIENT_ID")
     if not client_id:
         return redirect(url_for("auth.login"))
     session["li_share_gen_id"] = gen_id
+    session["li_oauth_flow"] = "share"
     session["li_oauth_next"] = request.referrer or url_for("main.dashboard")
     redirect_uri = absolute_url_for("auth.login_linkedin_callback")
     scopes = current_app.config.get("LINKEDIN_SCOPES", "openid profile email")
@@ -127,10 +132,20 @@ def login_linkedin_callback():
     headers = {"Authorization": f"Bearer {access_token}"}
     sub = None
     email = ""
+    full_name = None
+    picture = None
     try:
         prof = httpx.get("https://api.linkedin.com/v2/userinfo", headers=headers, timeout=20.0).json()
         sub = prof.get("sub")
         email = (prof.get("email") or "").lower().strip()
+        try:
+            full_name = (prof.get("name") or None) if isinstance(prof, dict) else None
+        except Exception:
+            full_name = None
+        try:
+            picture = (prof.get("picture") or None) if isinstance(prof, dict) else None
+        except Exception:
+            picture = None
     except Exception:
         prof = {}
     if not email:
@@ -153,6 +168,67 @@ def login_linkedin_callback():
     if not (email or sub):
         flash("LinkedIn sign-in failed (no email returned by LinkedIn).", "error")
         return redirect(url_for("auth.login"))
+
+    # Share flow should NEVER create/switch LinkerHero accounts. It's only for connecting/sharing.
+    is_share_flow = bool(session.get("li_share_gen_id")) or (session.get("li_oauth_flow") == "share")
+    if is_share_flow:
+        pending_gen_id = session.pop("li_share_gen_id", None)
+        session.pop("li_oauth_flow", None)
+        if not pending_gen_id:
+            flash("LinkedIn share failed (missing draft). Please try again.", "error")
+            return redirect(url_for("main.dashboard"))
+        app_uid = session.get("user_id")
+        if not app_uid:
+            flash(
+                "LinkedIn share failed (you were logged out during the LinkedIn sign-in). Please log in and try again.",
+                "error",
+            )
+            return redirect(url_for("auth.login", next=url_for("main.dashboard")))
+        if not sub:
+            flash("LinkedIn share failed (missing LinkedIn user id). Please try again.", "error")
+            return redirect(url_for("main.dashboard"))
+        try:
+            ugc_headers = {
+                "Authorization": f"Bearer {access_token}",
+                "X-Restli-Protocol-Version": "2.0.0",
+                "Content-Type": "application/json",
+            }
+            with db_session() as session_db:
+                gen = session_db.get(Generation, pending_gen_id)
+                if not gen or gen.user_id != app_uid:
+                    flash(
+                        "LinkedIn share failed (draft not found for this account). Please open the draft again and retry.",
+                        "error",
+                    )
+                else:
+                    payload = {
+                        "author": f"urn:li:person:{sub}",
+                        "lifecycleState": "PUBLISHED",
+                        "specificContent": {
+                            "com.linkedin.ugc.ShareContent": {
+                                "shareCommentary": {"text": gen.draft_text[:2800]},
+                                "shareMediaCategory": "NONE",
+                            }
+                        },
+                        "visibility": {
+                            "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
+                        },
+                    }
+                    resp = httpx.post(
+                        "https://api.linkedin.com/v2/ugcPosts",
+                        headers=ugc_headers,
+                        content=json.dumps(payload),
+                        timeout=20.0,
+                    )
+                    if resp.status_code == 201:
+                        flash("Shared on LinkedIn successfully.", "success")
+                    else:
+                        # Include some detail so debugging is possible (but keep it short)
+                        flash(f"LinkedIn share failed ({resp.status_code}). Please try again.", "error")
+        except Exception:
+            flash("LinkedIn share failed. Please try again.", "error")
+        next_url = session.pop("li_oauth_next", None) or url_for("main.dashboard")
+        return redirect(next_url)
 
     with db_session() as session_db:
         user = None
@@ -185,6 +261,9 @@ def login_linkedin_callback():
                 email=email or f"li_{sub}@example.local",
                 display_name=given_name
                 or (email.split("@")[0].split(".")[0].split("_")[0].capitalize() if email else None),
+                full_name=full_name or None,
+                profile_image_url=picture or None,
+                profile_source="linkedin",
                 oauth_provider="linkedin",
                 oauth_sub=sub,
                 plan="free",
@@ -200,53 +279,20 @@ def login_linkedin_callback():
                 given_name = None
             if given_name and (not getattr(user, "display_name", None)):
                 user.display_name = given_name
+            if full_name and (not getattr(user, "full_name", None)):
+                user.full_name = full_name
+            if picture and (not getattr(user, "profile_image_url", None)):
+                user.profile_image_url = picture
+            if not getattr(user, "profile_source", None):
+                user.profile_source = "linkedin"
         if email and not user.email_verified_at:
             user.email_verified_at = datetime.now(timezone.utc)
-        is_share_flow = bool(session.get("li_share_gen_id"))
-        if not is_share_flow:
-            session["user_id"] = user.id
-            ua = request.headers.get("User-Agent")
-            ip = request.headers.get("X-Forwarded-For", request.remote_addr)
-            now = datetime.now(timezone.utc)
-            session_db.add(UserSession(user_id=user.id, user_agent=ua, ip_address=ip, created_at=now, last_seen_at=now))
+        session["user_id"] = user.id
+        ua = request.headers.get("User-Agent")
+        ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+        now = datetime.now(timezone.utc)
+        session_db.add(UserSession(user_id=user.id, user_agent=ua, ip_address=ip, created_at=now, last_seen_at=now))
 
-    pending_gen_id = session.pop("li_share_gen_id", None)
-    if pending_gen_id and sub:
-        try:
-            ugc_headers = {
-                "Authorization": f"Bearer {access_token}",
-                "X-Restli-Protocol-Version": "2.0.0",
-                "Content-Type": "application/json",
-            }
-            with db_session() as session_db:
-                gen = session_db.get(Generation, pending_gen_id)
-                app_uid = session.get("user_id")
-                if gen and app_uid and gen.user_id == app_uid:
-                    payload = {
-                        "author": f"urn:li:person:{sub}",
-                        "lifecycleState": "PUBLISHED",
-                        "specificContent": {
-                            "com.linkedin.ugc.ShareContent": {
-                                "shareCommentary": {"text": gen.draft_text[:2800]},
-                                "shareMediaCategory": "NONE",
-                            }
-                        },
-                        "visibility": {
-                            "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
-                        },
-                    }
-                    resp = httpx.post(
-                        "https://api.linkedin.com/v2/ugcPosts",
-                        headers=ugc_headers,
-                        content=json.dumps(payload),
-                        timeout=20.0,
-                    )
-                    if resp.status_code == 201:
-                        flash("Shared on LinkedIn successfully.")
-                    else:
-                        flash("LinkedIn share failed. Please try again later.")
-        except Exception:
-            flash("LinkedIn share failed. Please try again.")
     next_url = session.pop("li_oauth_next", None) or url_for("main.index")
     return redirect(next_url)
 

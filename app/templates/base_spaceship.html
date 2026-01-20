@@ -6,12 +6,16 @@
     <meta name="csrf-token" content="{{ csrf_token() }}" />
     <title>{{ app_name }} - AI-Powered LinkedIn Post Generator</title>
     {{ css('spaceship.css')|safe }}
+    <style>
+      /* Keep flash/error messages visible below the fixed header */
+      .flash-container { margin-top: calc(70px + 12px); }
+    </style>
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   </head>
-  <body>
+  <body class="{{ body_class|default('') }}">
     <nav class="nav">
       <div class="nav-container">
         <a href="/" class="nav-brand">LinkerHero</a>
@@ -38,7 +42,7 @@
 
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-    <div class="container mt-1">
+    <div class="container flash-container">
       {% for category, m in messages %}
       <div class="{{ 'error' if category in ['error','danger'] else 'success' if category in ['success'] else 'card p-05 bg-soft border-soft' }} mb-1">{{ m }}</div>
       {% endfor %}

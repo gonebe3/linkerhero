@@ -22,6 +22,14 @@ def create_app() -> Flask:
     # Increase max upload size to 50 MB for file-based generation
     app.config.setdefault("MAX_CONTENT_LENGTH", 50 * 1024 * 1024)
 
+    # SQLite doesn't support the same pooling options as Postgres; avoid passing them.
+    try:
+        uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+        if isinstance(uri, str) and uri.startswith("sqlite"):
+            app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {}
+    except Exception:
+        pass
+
     # Derive cookie security from APP_BASE_URL to avoid "secure cookie on http"
     # which breaks login persistence (common cause of OAuth not logging in).
     try:
@@ -230,6 +238,7 @@ def create_app() -> Flask:
         print("ok")
 
     from .news.rss import refresh_all_feeds, refresh_category_feeds
+    from .news.rss import repair_article_categories_from_source
     from .news.services import CategoryService
 
     @app.cli.command("rss:refresh")
@@ -259,6 +268,19 @@ def create_app() -> Flask:
                 a.deleted_at = datetime.now(timezone.utc)
                 removed += 1
         print(f"soft-deleted {removed} articles without image")
+
+    @app.cli.command("rss:repair_categories")
+    @click.option("--dry-run", is_flag=True, default=False, help="Show how many links would be repaired without writing.")
+    def rss_repair_categories(dry_run: bool) -> None:
+        """
+        Repair article->category links using Article.source (feed URL) as source of truth.
+
+        Use this if categories were renamed/reconfigured historically and Content Fuel filters
+        show articles from the wrong category.
+        """
+        CategoryService.ensure_categories_exist()
+        res = repair_article_categories_from_source(dry_run=dry_run)
+        print(f"repaired={res['repaired']} skipped_unknown_source={res['skipped_unknown_source']}")
 
     from .auth.services import ensure_admin
     import click

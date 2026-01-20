@@ -18,11 +18,11 @@ from typing import Any, Optional
 
 import aiohttp
 import feedparser
-from sqlalchemy import select
+from sqlalchemy import select, delete
 
 from ..db import db_session
 from ..models import Article, Category, ArticleCategory
-from .feeds_config import CATEGORIES, get_feeds_for_category, get_category_slugs
+from .feeds_config import CATEGORIES, get_feeds_for_category, get_category_slugs, get_all_feeds
 from .url_validator import validate_url, is_url_safe
 from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 
@@ -55,6 +55,42 @@ def _normalize_url(url: str) -> str:
         return normalized
     except Exception:
         return url
+
+
+def _normalize_feed_key(url: str) -> str:
+    """
+    Normalize an RSS feed URL into a stable key for mapping.
+
+    Purpose: robust matching between stored Article.source and feeds_config URLs,
+    even if scheme differs (http vs https) or case differs.
+
+    Returns: "<host><path>" lowercased, without trailing slash, without query/fragment.
+    Example: "finance.yahoo.com/news/rssindex"
+    """
+    try:
+        p = urlparse(url or "")
+        host = (p.netloc or "").lower()
+        path = (p.path or "").rstrip("/").lower()
+        return f"{host}{path}"
+    except Exception:
+        return (url or "").strip().lower()
+
+
+def _build_feed_url_to_category_slug() -> dict[str, str]:
+    """
+    Build a mapping of normalized feed URL -> category slug.
+
+    This is used as the source of truth for category assignment to prevent
+    mismatches between UI selection and persisted article categories.
+    """
+    mapping: dict[str, str] = {}
+    for feed_url, category_slug, _source_name in get_all_feeds():
+        mapping[_normalize_feed_key(feed_url)] = category_slug
+    return mapping
+
+
+# Source-of-truth mapping for category assignment
+FEED_URL_TO_CATEGORY_SLUG: dict[str, str] = _build_feed_url_to_category_slug()
 
 # Timeout for individual feed fetches
 FEED_TIMEOUT_SECONDS = 20
@@ -401,39 +437,69 @@ def _save_entries_to_db(entries: list[dict], category_slug: str) -> int:
     skipped_duplicate = 0
     
     with db_session() as s:
-        # Get or create category
-        category = s.execute(
-            select(Category).where(Category.slug == category_slug)
-        ).scalar_one_or_none()
-        
-        if not category:
-            # Create category from config
-            config = CATEGORIES.get(category_slug)
-            if not config:
-                logger.error(f"Category not found in config: {category_slug}")
-                return 0
-            
-            category = Category(
-                name=config["name"],
-                slug=category_slug,
-                image_path=config["image"],
-            )
-            s.add(category)
+        # Cache categories by slug (create on-demand)
+        categories_by_slug: dict[str, Category] = {
+            c.slug: c for c in s.execute(select(Category)).scalars().all()
+        }
+
+        def _ensure_category(slug: str) -> Category:
+            cat = categories_by_slug.get(slug)
+            if cat:
+                # Keep metadata in sync with config (safe; slug is canonical key)
+                cfg = CATEGORIES.get(slug)
+                if cfg:
+                    cat.name = cfg["name"]
+                    cat.image_path = cfg["image"]
+                return cat
+
+            cfg = CATEGORIES.get(slug)
+            if not cfg:
+                # Fallback: create minimal row to avoid crashes; UI uses config anyway.
+                cat = Category(name=slug, slug=slug, image_path=None)
+            else:
+                cat = Category(name=cfg["name"], slug=slug, image_path=cfg["image"])
+            s.add(cat)
             s.flush()
-            logger.info(f"Created category: {config['name']}")
-        
-        # Get existing URLs to avoid duplicates (normalized for comparison)
-        existing_urls = set(
-            _normalize_url(url) for url, in s.execute(select(Article.url)).all()
-        )
+            categories_by_slug[slug] = cat
+            logger.info(f"Created category: {cat.name} ({cat.slug})")
+            return cat
+
+        # Existing URLs map: normalized_url -> article_id (enables relinking duplicates)
+        existing_url_to_id: dict[str, str] = {}
+        for article_id, url in s.execute(select(Article.id, Article.url)).all():
+            existing_url_to_id[_normalize_url(url)] = article_id
         
         for entry in entries:
             link = entry["link"]
             normalized_link = _normalize_url(link)
+
+            # Source-of-truth category is derived from the feed URL.
+            # Fallback to passed category_slug to preserve current behavior if mapping is missing.
+            feed_url = entry.get("feed_url") or ""
+            feed_key = _normalize_feed_key(feed_url) if feed_url else ""
+            intended_slug = FEED_URL_TO_CATEGORY_SLUG.get(feed_key) or category_slug
+            category = _ensure_category(intended_slug)
             
             # Skip if already exists (using normalized URL)
-            if normalized_link in existing_urls:
+            existing_article_id = existing_url_to_id.get(normalized_link)
+            if existing_article_id:
                 skipped_duplicate += 1
+                # Enforce: each article belongs to exactly one category based on its feed URL.
+                # This prevents cross-category contamination when a URL is seen in multiple refreshes.
+                s.execute(
+                    delete(ArticleCategory).where(
+                        ArticleCategory.article_id == existing_article_id,
+                        ArticleCategory.category_id != category.id,
+                    )
+                )
+                exists = s.execute(
+                    select(ArticleCategory.id).where(
+                        ArticleCategory.article_id == existing_article_id,
+                        ArticleCategory.category_id == category.id,
+                    )
+                ).first()
+                if not exists:
+                    s.add(ArticleCategory(article_id=existing_article_id, category_id=category.id))
                 continue
             
             title = entry.get("title", "")
@@ -485,11 +551,71 @@ def _save_entries_to_db(entries: list[dict], category_slug: str) -> int:
             )
             s.add(article_category)
             
-            existing_urls.add(normalized_link)
+            existing_url_to_id[normalized_link] = article.id
             added_count += 1
     
     logger.info(f"Category {category_slug}: Added {added_count}, Duplicates skipped: {skipped_duplicate}, No title: {skipped_no_title}")
     return added_count
+
+
+def repair_article_categories_from_source(*, dry_run: bool = False) -> dict[str, int]:
+    """
+    Repair article->category links using Article.source (feed URL) as source of truth.
+
+    This fixes historical mis-categorization when category config changed or when an
+    article URL existed and was previously skipped for a later category refresh.
+    """
+    repaired = 0
+    skipped_unknown_source = 0
+
+    with db_session() as s:
+        # Ensure categories exist and are in-sync with config metadata.
+        categories_by_slug: dict[str, Category] = {
+            c.slug: c for c in s.execute(select(Category)).scalars().all()
+        }
+
+        def _ensure_category(slug: str) -> Category:
+            cat = categories_by_slug.get(slug)
+            if cat:
+                cfg = CATEGORIES.get(slug)
+                if cfg:
+                    cat.name = cfg["name"]
+                    cat.image_path = cfg["image"]
+                return cat
+            cfg = CATEGORIES.get(slug)
+            if not cfg:
+                cat = Category(name=slug, slug=slug, image_path=None)
+            else:
+                cat = Category(name=cfg["name"], slug=slug, image_path=cfg["image"])
+            s.add(cat)
+            s.flush()
+            categories_by_slug[slug] = cat
+            return cat
+
+        # Compute intended category per article
+        intended: dict[str, str] = {}
+        for article_id, source in s.execute(select(Article.id, Article.source)).all():
+            feed_key = _normalize_feed_key(source or "")
+            slug = FEED_URL_TO_CATEGORY_SLUG.get(feed_key)
+            if not slug:
+                skipped_unknown_source += 1
+                continue
+            intended[str(article_id)] = slug
+
+        if not intended:
+            return {"repaired": 0, "skipped_unknown_source": skipped_unknown_source}
+
+        # Delete existing links, then re-insert correct ones
+        if dry_run:
+            return {"repaired": len(intended), "skipped_unknown_source": skipped_unknown_source}
+
+        s.execute(delete(ArticleCategory).where(ArticleCategory.article_id.in_(list(intended.keys()))))
+        for article_id, slug in intended.items():
+            cat = _ensure_category(slug)
+            s.add(ArticleCategory(article_id=article_id, category_id=cat.id))
+            repaired += 1
+
+    return {"repaired": repaired, "skipped_unknown_source": skipped_unknown_source}
 
 
 def refresh_category_feeds(category_slug: str) -> int:

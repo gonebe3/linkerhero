@@ -8,6 +8,7 @@ Routes:
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from flask import Blueprint, abort, jsonify, redirect, render_template, request, session, url_for, flash
 
 from ..db import db_session
@@ -25,6 +26,27 @@ def _safe_int(value, default: int = 1) -> int:
         return max(1, int(value))
     except (ValueError, TypeError):
         return default
+
+
+def _parse_as_of(value: str | None) -> datetime:
+    """
+    Parse an ISO8601 timestamp used to freeze pagination ("snapshot pagination").
+
+    Accepts both "+00:00" and "Z" suffixes. Falls back to 'now' if invalid/missing.
+    Always returns timezone-aware UTC datetime.
+    """
+    if not value:
+        return datetime.now(timezone.utc)
+    raw = (value or "").strip()
+    try:
+        if raw.endswith("Z"):
+            raw = raw[:-1] + "+00:00"
+        dt = datetime.fromisoformat(raw)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+    except Exception:
+        return datetime.now(timezone.utc)
 
 
 def _require_login():
@@ -145,6 +167,8 @@ def my_feed():
     active_cat = (request.args.get("cat") or "").strip()
     if active_cat and active_cat not in slug_to_cat:
         active_cat = ""
+    as_of_dt = _parse_as_of(request.args.get("as_of"))
+    as_of = as_of_dt.isoformat()
 
     page_size = 20
 
@@ -156,6 +180,7 @@ def my_feed():
         page=page,
         page_size=page_size,
         query=query or None,
+        as_of=as_of_dt,
     )
 
     selected_categories = [slug_to_cat[s] for s in selected_slugs if s in slug_to_cat]
@@ -192,6 +217,7 @@ def my_feed():
         total_pages=total_pages,
         total_count=total_count,
         q=query,
+        as_of=as_of,
         show_only_my_categories=show_only,
         selected_slugs=selected_slugs,
         selected_categories=selected_categories,
@@ -220,6 +246,8 @@ def category_detail(slug: str):
     page = _safe_int(request.args.get("page"), 1)
     query = request.args.get("q", "").strip()
     source_filter = request.args.get("source", "").strip() or None
+    as_of_dt = _parse_as_of(request.args.get("as_of"))
+    as_of = as_of_dt.isoformat()
 
     page_size = 20
 
@@ -234,6 +262,7 @@ def category_detail(slug: str):
             page=page,
             page_size=page_size,
             source_filter=source_filter,
+            as_of=as_of_dt,
         )
     else:
         articles, total_count, total_pages = ArticleService.get_articles_for_category(
@@ -241,6 +270,7 @@ def category_detail(slug: str):
             page=page,
             page_size=page_size,
             source_filter=source_filter,
+            as_of=as_of_dt,
         )
     
     # Get most generated articles for "Most Popular" section
@@ -256,6 +286,7 @@ def category_detail(slug: str):
         total_pages=total_pages,
         total_count=total_count,
         query=query,
+        as_of=as_of,
         most_generated_articles=most_generated_articles,
     )
 
@@ -358,11 +389,23 @@ def save_news_preferences():
 @bp.route("/api/extract")
 async def api_extract():
     """Extract content from a URL (for generation preview)."""
-    from .rss import extract_url
+    from .article_extractor import extract_full_article
     
     url = request.args.get("url", "")
     if not url:
         return jsonify({"error": "url required"}), 400
     
-    data = await extract_url(url)
-    return jsonify(data)
+    try:
+        data = await extract_full_article(url)
+        return jsonify(
+            {
+                "title": data.title,
+                "summary": data.summary,
+                "content_text": data.content_text,
+                "word_count": data.word_count,
+                "final_url": data.final_url,
+                "extractor": data.extractor,
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": "extract_failed", "message": str(e)}), 400

@@ -168,3 +168,26 @@ def share_preview(gen_id: str):
         description = gen.draft_text.strip()[:300]
     return render_template("share_preview.html", title=title, description=description, body=gen.draft_text)
 
+
+@bp.route("/api/generations/<gen_id>/draft", methods=["POST"])
+def update_generation_draft(gen_id: str):
+    """
+    Update a generated draft text (for LinkedIn-like composer edits).
+    CSRF is enforced globally; HTMX requests include X-CSRFToken automatically.
+    """
+    uid = session.get("user_id")
+    if not uid:
+        return ("unauthorized", 401)
+    draft_text = (request.form.get("draft_text") or "").strip()
+    if not draft_text:
+        return ("draft_text required", 400)
+    # Keep a reasonable upper bound (LinkedIn UGC uses <= 2800; we allow more but cap storage)
+    if len(draft_text) > 10000:
+        draft_text = draft_text[:10000]
+    with db_session() as s:
+        gen = s.get(Generation, gen_id)
+        if not gen or gen.deleted_at is not None or gen.user_id != uid:
+            return ("not found", 404)
+        gen.draft_text = draft_text
+    return ("", 204)
+

@@ -39,7 +39,7 @@
           <h3 class="c-white fw-700 fs-1rem mb-2">Filter by Source</h3>
           <div class="source-list-vertical">
             <a 
-              href="/news/{{ category.slug }}{% if query %}?q={{ query|urlencode }}{% endif %}" 
+              href="/news/{{ category.slug }}{% if query or as_of %}?{% endif %}{% if query %}q={{ query|urlencode }}{% endif %}{% if query and as_of %}&{% endif %}{% if as_of %}as_of={{ as_of|urlencode }}{% endif %}" 
               class="source-list-item {% if not current_source %}source-list-item-active{% endif %}"
             >
               <span class="source-list-name">All Sources</span>
@@ -47,7 +47,7 @@
             </a>
             {% for src in sources %}
             <a 
-              href="/news/{{ category.slug }}?source={{ src.name|urlencode }}{% if query %}&q={{ query|urlencode }}{% endif %}" 
+              href="/news/{{ category.slug }}?source={{ src.name|urlencode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if as_of %}&as_of={{ as_of|urlencode }}{% endif %}" 
               class="source-list-item {% if current_source == src.name %}source-list-item-active{% endif %}"
             >
               <span class="source-list-name">
@@ -81,6 +81,9 @@
           <form method="get" action="/news/{{ category.slug }}" class="search-form-centered">
             {% if current_source %}
             <input type="hidden" name="source" value="{{ current_source }}" />
+            {% endif %}
+            {% if as_of %}
+            <input type="hidden" name="as_of" value="{{ as_of }}" />
             {% endif %}
             <div class="form-group mb-0 flex-1">
               <label class="form-label">🔍 Search Articles</label>
@@ -151,7 +154,7 @@
     <div class="pagination mt-4">
       <div class="flex gap-05 justify-center items-center flex-wrap">
         {% if page > 1 %}
-        <a href="/news/{{ category.slug }}?page={{ page - 1 }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" class="btn btn-secondary px-12 py-06">
+        <a href="/news/{{ category.slug }}?page={{ page - 1 }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}{% if as_of %}&as_of={{ as_of|urlencode }}{% endif %}" class="btn btn-secondary px-12 py-06">
           ← Previous
         </a>
         {% endif %}
@@ -161,7 +164,7 @@
         </span>
         
         {% if page < total_pages %}
-        <a href="/news/{{ category.slug }}?page={{ page + 1 }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" class="btn btn-secondary px-12 py-06">
+        <a href="/news/{{ category.slug }}?page={{ page + 1 }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}{% if as_of %}&as_of={{ as_of|urlencode }}{% endif %}" class="btn btn-secondary px-12 py-06">
           Next →
         </a>
         {% endif %}

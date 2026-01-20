@@ -8,6 +8,7 @@ Follows Single Responsibility Principle:
 from __future__ import annotations
 
 from typing import Tuple
+from datetime import datetime
 from sqlalchemy import select, func
 
 from ..db import db_session
@@ -111,13 +112,18 @@ class CategoryService:
             }
             
             for slug, config in CATEGORIES.items():
-                if slug not in existing:
-                    cat = Category(
-                        name=config["name"],
-                        slug=slug,
-                        image_path=config["image"],
+                if slug in existing:
+                    # Keep DB metadata aligned with config (slug is canonical).
+                    existing[slug].name = config["name"]
+                    existing[slug].image_path = config["image"]
+                else:
+                    s.add(
+                        Category(
+                            name=config["name"],
+                            slug=slug,
+                            image_path=config["image"],
+                        )
                     )
-                    s.add(cat)
             
             # Commit happens automatically
 
@@ -132,6 +138,7 @@ class ArticleService:
         page_size: int = 20,
         query: str | None = None,
         source_filter: str | None = None,
+        as_of: datetime | None = None,
     ) -> Tuple[list[Article], int, int]:
         """
         Return a paginated aggregated feed across multiple categories.
@@ -166,6 +173,9 @@ class ArticleService:
                 .join(Category, Category.id == ArticleCategory.category_id)
                 .where(Article.deleted_at.is_(None))
             )
+            # Freeze pagination to a snapshot to avoid duplicates across pages when new items arrive.
+            if as_of is not None:
+                base = base.where(Article.created_at <= as_of)
 
             # Category filtering (optional)
             if category_slugs:
@@ -188,7 +198,8 @@ class ArticleService:
 
             # Total count should be cheap and NOT require window functions.
             # Count distinct articles across the filtered join.
-            base_ids = base.with_only_columns(base.selected_columns.article_id).subquery()
+            base_sq = base.subquery()
+            base_ids = select(base_sq.c.article_id).subquery()
             total_count = s.execute(
                 select(func.count(func.distinct(base_ids.c.article_id)))
             ).scalar() or 0
@@ -206,7 +217,7 @@ class ArticleService:
 
                 cat_rank = func.row_number().over(
                     partition_by=base_sq.c.cat_slug,
-                    order_by=(base_sq.c.created_at.desc(),),
+                    order_by=(base_sq.c.created_at.desc(), base_sq.c.article_id.desc()),
                 ).label("cat_rank")
 
                 per_cat = (
@@ -227,7 +238,11 @@ class ArticleService:
 
                 article_rn = func.row_number().over(
                     partition_by=per_cat_limited.c.article_id,
-                    order_by=(per_cat_limited.c.cat_rank.asc(), per_cat_limited.c.created_at.desc()),
+                    order_by=(
+                        per_cat_limited.c.cat_rank.asc(),
+                        per_cat_limited.c.created_at.desc(),
+                        per_cat_limited.c.article_id.desc(),
+                    ),
                 ).label("article_rn")
 
                 deduped = (
@@ -243,7 +258,7 @@ class ArticleService:
                 page_ids = (
                     select(deduped.c.article_id, deduped.c.created_at, deduped.c.cat_rank)
                     .where(deduped.c.article_rn == 1)
-                    .order_by(deduped.c.cat_rank.asc(), deduped.c.created_at.desc())
+                    .order_by(deduped.c.cat_rank.asc(), deduped.c.created_at.desc(), deduped.c.article_id.desc())
                     .offset(offset)
                     .limit(page_size)
                 ).subquery()
@@ -252,30 +267,32 @@ class ArticleService:
                     s.execute(
                         select(Article)
                         .join(page_ids, Article.id == page_ids.c.article_id)
-                        .order_by(page_ids.c.cat_rank.asc(), page_ids.c.created_at.desc())
+                        .order_by(page_ids.c.cat_rank.asc(), page_ids.c.created_at.desc(), page_ids.c.article_id.desc())
                     )
                     .scalars()
                     .all()
                 )
             else:
+                # IMPORTANT: reference columns from the subquery to avoid cartesian products
+                # (and broken category filtering).
                 rn = func.row_number().over(
-                    partition_by=base.selected_columns.article_id,
-                    order_by=(created_at.desc(),),
+                    partition_by=base_sq.c.article_id,
+                    order_by=(base_sq.c.created_at.desc(), base_sq.c.article_id.desc()),
                 ).label("rn")
 
                 ranked = (
                     select(
-                        base.selected_columns.article_id,
-                        base.selected_columns.created_at,
+                        base_sq.c.article_id,
+                        base_sq.c.created_at,
                         rn,
                     )
-                    .select_from(base.subquery())
+                    .select_from(base_sq)
                 ).subquery()
 
                 page_ids = (
                     select(ranked.c.article_id, ranked.c.created_at)
                     .where(ranked.c.rn == 1)
-                    .order_by(ranked.c.created_at.desc())
+                    .order_by(ranked.c.created_at.desc(), ranked.c.article_id.desc())
                     .offset(offset)
                     .limit(page_size)
                 ).subquery()
@@ -284,7 +301,7 @@ class ArticleService:
                     s.execute(
                         select(Article)
                         .join(page_ids, Article.id == page_ids.c.article_id)
-                        .order_by(page_ids.c.created_at.desc())
+                        .order_by(page_ids.c.created_at.desc(), page_ids.c.article_id.desc())
                     )
                     .scalars()
                     .all()
@@ -344,6 +361,7 @@ class ArticleService:
         page: int = 1,
         page_size: int = 20,
         source_filter: str | None = None,
+        as_of: datetime | None = None,
     ) -> Tuple[list[Article], int, int]:
         """
         Return paginated articles for a category.
@@ -375,6 +393,8 @@ class ArticleService:
                 .where(ArticleCategory.category_id == category.id)
                 .where(Article.deleted_at.is_(None))
             )
+            if as_of is not None:
+                base_query = base_query.where(Article.created_at <= as_of)
             
             # Apply source filter if specified
             if source_filter:
@@ -389,7 +409,8 @@ class ArticleService:
                 base_query
                 .order_by(
                     Article.image_url.isnot(None).desc(),  # Articles with images first
-                    Article.created_at.desc()
+                    Article.created_at.desc(),
+                    Article.id.desc(),
                 )
                 .offset(offset)
                 .limit(page_size)
@@ -408,6 +429,7 @@ class ArticleService:
         page: int = 1,
         page_size: int = 20,
         source_filter: str | None = None,
+        as_of: datetime | None = None,
     ) -> Tuple[list[Article], int, int]:
         """
         Search articles within a category.
@@ -448,6 +470,8 @@ class ArticleService:
                     )
                 )
             )
+            if as_of is not None:
+                base_query = base_query.where(Article.created_at <= as_of)
             
             # Apply source filter if specified
             if source_filter:
@@ -462,7 +486,8 @@ class ArticleService:
                 base_query
                 .order_by(
                     Article.image_url.isnot(None).desc(),  # Articles with images first
-                    Article.created_at.desc()
+                    Article.created_at.desc(),
+                    Article.id.desc(),
                 )
                 .offset(offset)
                 .limit(page_size)

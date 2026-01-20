@@ -28,6 +28,7 @@ class AnthropicProvider:
         emoji: str | None = None,
         user_prompt: str | None = None,
         language: str | None = None,
+        model: str | None = None,
     ) -> List[str]:
         if not self.client:
             base = source_text.split("\n")[0][:140]
@@ -50,13 +51,13 @@ class AnthropicProvider:
 
         length_clause = ""
         if length == "short":
-            length_clause = " Length: Short (1–2 short paragraphs, ~80–140 words)."
+            length_clause = " Target length: 100–500 characters (including spaces)."
         elif length == "medium":
-            length_clause = " Length: Medium (2–4 short paragraphs, ~150–260 words)."
+            length_clause = " Target length: 500–1,500 characters (including spaces)."
         elif length == "long":
-            length_clause = " Length: Long (4–6 short paragraphs, ~280–420 words)."
+            length_clause = " Target length: 1,500–3,000 characters (including spaces)."
         else:
-            length_clause = " Length: Auto (pick the best length)."
+            length_clause = " Target length: Auto (pick the best length)."
 
         ending_clause = ""
         if ending == "mic-drop":
@@ -105,7 +106,7 @@ class AnthropicProvider:
             + lang_clause
         )
         resp = self.client.messages.create(
-            model="claude-3-7-sonnet-20250219",
+            model=(model or "claude-3-7-sonnet-20250219"),
             max_tokens=max_tokens,
             system=system,
             messages=[{"role": "user", "content": prompt}],
@@ -125,19 +126,23 @@ class AnthropicProvider:
         return variants[:n_variants] if variants else [text.strip()][:n_variants]
 
     # New: extract grounded facts as JSON list
-    def extract_facts(self, *, source_text: str, language: str | None = None, max_facts: int = 12) -> List[str]:
+    def extract_facts(self, *, source_text: str, language: str | None = None, max_facts: int = 12, model: str | None = None) -> List[str]:
         if not self.client:
             # Fallback: naive sentence split
             sentences = [s.strip() for s in re.split(r"[\.!?\n]+", source_text) if s.strip()]
             return sentences[:max_facts]
         system = (
-            "Extract key facts as short bullet points from the Source. "
-            "Do NOT invent new information. Return each fact as a single line. "
+            "Extract key facts as short bullets from the Source. Do NOT invent new information.\n"
+            "Each bullet MUST include:\n"
+            "- a concrete claim grounded in the Source\n"
+            "- a brief evidence snippet (short quote/phrase) from the Source\n"
+            "- include numbers/dates/names when present\n"
+            "Format: <fact> — evidence: \"<snippet>\"\n"
             "Write in the same language as the Source."
         )
-        prompt = f"Source:\n{source_text[:3000]}\n\nReturn up to {max_facts} facts, one per line."
+        prompt = f"Source:\n{source_text[:3000]}\n\nReturn up to {max_facts} bullets, one per line, using the required format."
         resp = self.client.messages.create(
-            model="claude-3-7-sonnet-20250219",
+            model=(model or "claude-3-7-sonnet-20250219"),
             max_tokens=600,
             system=system,
             messages=[{"role": "user", "content": prompt}],
@@ -161,6 +166,7 @@ class AnthropicProvider:
         user_prompt: str | None = None,
         language: str | None = None,
         max_tokens: int = 600,
+        model: str | None = None,
     ) -> str:
         if not self.client:
             base = " ".join(facts)[:400]
@@ -180,13 +186,13 @@ class AnthropicProvider:
             emoji_clause = " Emoji: Do not use emojis."
         length_clause = ""
         if length == "short":
-            length_clause = " Length: Short (1–2 short paragraphs, ~80–140 words)."
+            length_clause = " Target length: 100–500 characters (including spaces)."
         elif length == "medium":
-            length_clause = " Length: Medium (2–4 short paragraphs, ~150–260 words)."
+            length_clause = " Target length: 500–1,500 characters (including spaces)."
         elif length == "long":
-            length_clause = " Length: Long (4–6 short paragraphs, ~280–420 words)."
+            length_clause = " Target length: 1,500–3,000 characters (including spaces)."
         else:
-            length_clause = " Length: Auto (pick the best length)."
+            length_clause = " Target length: Auto (pick the best length)."
         ending_clause = ""
         if ending == "mic-drop":
             ending_clause = " Ending: Mic Drop (end with a strong statement; no question)."
@@ -207,7 +213,16 @@ class AnthropicProvider:
             else ""
         )
         system = (
-            "You write concise, topic-grounded LinkedIn posts. Start with a strong hook. 2–4 short paragraphs. "
+            "You write concise, topic-grounded LinkedIn posts.\n"
+            "Hard rules:\n"
+            "- Use ONLY the provided facts (do not add new stats, names, or claims).\n"
+            "- Keep it under 2400 characters.\n"
+            "- No more than 2 hashtags total (optional).\n"
+            "- No 'As an AI', no generic LinkedIn advice unless the facts are about LinkedIn.\n"
+            "Structure:\n"
+            "- Strong hook line (1 line)\n"
+            "- 3–6 short paragraphs (<=60 words each), optional bullets\n"
+            "- End with a CTA matched to the goal (question/prompt/DM/etc.)\n\n"
             + persona_clause
             + tone_clause
             + goal_clause
@@ -226,7 +241,7 @@ class AnthropicProvider:
             f"Facts:{facts_text}"
         )
         resp = self.client.messages.create(
-            model="claude-3-7-sonnet-20250219",
+            model=(model or "claude-3-7-sonnet-20250219"),
             max_tokens=max_tokens,
             system=system,
             messages=[{"role": "user", "content": prompt}],

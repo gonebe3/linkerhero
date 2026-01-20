@@ -8,9 +8,10 @@ from dotenv import load_dotenv, find_dotenv
 # Load .env file robustly (project root)
 _dot_env = find_dotenv()
 if _dot_env:
-    load_dotenv(_dot_env, override=True)
+    # Never override process environment variables (tests / deployments rely on env)
+    load_dotenv(_dot_env, override=False)
 else:
-    load_dotenv(override=True)
+    load_dotenv(override=False)
 
 
 def normalize_neon_url(url: str | None) -> str | None:
@@ -77,6 +78,12 @@ class Config:
     LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "anthropic")
     ANTHROPIC_API_KEY: str | None = os.getenv("ANTHROPIC_API_KEY")
     OPENAI_API_KEY: str | None = os.getenv("OPENAI_API_KEY")
+    # Concrete model IDs (env-overridable to avoid hardcoding provider naming changes)
+    # UI labels:
+    # - ChatGPT 5.2 (OpenAI)
+    # - Claude Sonnet 4.5 (Anthropic)
+    OPENAI_MODEL_CHATGPT_5_2: str = os.getenv("OPENAI_MODEL_CHATGPT_5_2", "gpt-5")
+    ANTHROPIC_MODEL_SONNET_4_5: str = os.getenv("ANTHROPIC_MODEL_SONNET_4_5", "claude-3-7-sonnet-20250219")
 
     APP_BASE_URL: str = os.getenv("APP_BASE_URL", "http://localhost:5000")
 
@@ -117,6 +124,13 @@ class Config:
     GOOGLE_CLIENT_ID: str | None = os.getenv("GOOGLE_CLIENT_ID")
     GOOGLE_CLIENT_SECRET: str | None = os.getenv("GOOGLE_CLIENT_SECRET")
     GOOGLE_SCOPES: str = os.getenv("GOOGLE_SCOPES", "openid email profile")
+
+    # Article extraction (URL -> full content text) tuning
+    ARTICLE_EXTRACT_TIMEOUT_S: float = float(os.getenv("ARTICLE_EXTRACT_TIMEOUT_S", "15.0"))
+    ARTICLE_EXTRACT_MAX_BYTES: int = int(os.getenv("ARTICLE_EXTRACT_MAX_BYTES", str(2 * 1024 * 1024)))  # 2MB
+    ARTICLE_EXTRACT_MAX_CHARS: int = int(os.getenv("ARTICLE_EXTRACT_MAX_CHARS", "20000"))
+    ARTICLE_EXTRACT_MIN_CHARS: int = int(os.getenv("ARTICLE_EXTRACT_MIN_CHARS", "600"))
+    ARTICLE_CONTENT_TTL_HOURS: int = int(os.getenv("ARTICLE_CONTENT_TTL_HOURS", "168"))  # 7 days
 
     # OAuth account linking behavior:
     # - true (default): if an existing user has the same email, OAuth will sign into that user (merged account).

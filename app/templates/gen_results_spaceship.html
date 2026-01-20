@@ -1,16 +1,62 @@
-<div class="container">
+<div class="container pt-6rem">
+  <style>
+    /* Results page: match generation page blocks, while keeping post preview white (LinkedIn-like) */
+    .li-preview__textarea{
+      background: rgba(255,255,255,0.96) !important;
+      color: rgba(10,10,12,0.92) !important;
+      border: 1px solid rgba(255,255,255,0.16) !important;
+    }
+    .li-preview__textarea:focus{
+      border-color: rgba(255,111,78,0.55) !important;
+      box-shadow: 0 0 0 4px rgba(255,111,78,0.18) !important;
+    }
+    .li-preview__autosave{
+      display:inline-flex;align-items:center;gap:.35rem;
+      padding:.25rem .55rem;border-radius:999px;
+      font-size:.85rem;font-weight:700;
+      border:1px solid rgba(255,255,255,0.14);
+      color:rgba(255,255,255,0.75);
+      background:rgba(255,255,255,0.06);
+    }
+  </style>
   <div class="section">
-    {% if error %}
-    <div class="error mb-1rem">
-      {{ error }}
-    </div>
-    {% endif %}
-    <div class="text-center mb-4">
-      <h2 class="fs-2rem fw-800 c-white">✨ Your AI‑Crafted Draft</h2>
-      <p class="c-white-80">A clear, compelling post designed to spark conversations. Polish, make it yours, and share with confidence.</p>
-    </div>
-    
     {% set rows = gen_rows if gen_rows is defined else [] %}
+    {% set variants_list = variants if variants is defined else [] %}
+    {% set has_content = (rows and rows|length > 0) or (variants_list and variants_list|length > 0) %}
+
+    {% if error and not has_content %}
+      <div class="error mb-1rem">
+        {{ error }}
+      </div>
+
+      {% if (error_code if error_code is defined else '') == 'quota' %}
+        {% if renews_at %}
+          <div class="text-center c-white-80 mt-05">
+            Your limit will be renewed at: <strong>{{ renews_at }}</strong>
+          </div>
+        {% endif %}
+        <div class="text-center mt-2">
+          <a href="/pricing" class="btn btn-cta">Upgrade Plan</a>
+        </div>
+      {% else %}
+        <div class="text-center mt-2">
+          <a href="/generate" class="btn btn-secondary">🔄 Try Again</a>
+          {% if session.get('user_id') %}
+          <a href="/news" class="btn ml-1rem">📰 Browse Articles</a>
+          {% endif %}
+        </div>
+      {% endif %}
+    {% else %}
+      {% if error %}
+      <div class="error mb-1rem">
+        {{ error }}
+      </div>
+      {% endif %}
+      <div class="text-center mb-4">
+        <h2 class="fs-2rem fw-800 c-white">✨ Your AI‑Crafted Draft</h2>
+        <p class="c-white-80">A clear, compelling post designed to spark conversations. Polish, make it yours, and share with confidence.</p>
+      </div>
+    
     {% if rows and rows|length > 0 %}
     {% for row in rows %}
     {% set gid = row[0] %}
@@ -19,28 +65,73 @@
       <div class="card-header">
         <h3 class="c-white fs-13rem fw-700">Draft</h3>
       </div>
-      
-      <div class="generated-content">{{ v | replace('\n\n', '<br/><br/>') | replace('\n', '<br/>') | safe }}</div>
-      
-      <div class="text-center mt-3 flex gap-05 justify-center flex-wrap">
-        <button class="btn btn-copy" onclick="copyToClipboard(this, `{{ v|replace('`', '\\`')|replace('\\', '\\\\')|replace('\n', '\\n') }}`)">📋 Copy to Clipboard</button>
-        {% if gid %}
-        <a class="btn" href="https://www.linkedin.com/sharing/share-offsite/?url={{ absolute_url('share/preview/' ~ gid) }}" target="_blank" rel="noopener">Share on LinkedIn</a>
-        {% endif %}
+
+      {# LinkedIn-like preview card #}
+      <div class="li-preview">
+        <div class="li-preview__header">
+          {% set profile = user_profile if user_profile is defined else {} %}
+          {% set display_name = (profile.get('name') if profile else '') or 'You' %}
+          {% set avatar = (profile.get('profile_image_url') if profile else '') or '' %}
+          <div class="li-preview__avatar">
+            {% if avatar %}
+              <img src="{{ avatar }}" alt="" referrerpolicy="no-referrer" />
+            {% else %}
+              <div class="li-preview__avatar-fallback" aria-hidden="true">{{ (display_name[:1] or 'U')|upper }}</div>
+            {% endif %}
+          </div>
+          <div class="li-preview__meta">
+            <div class="li-preview__name">{{ display_name }}</div>
+            <div class="li-preview__sub">Posting to Anyone • Now</div>
+          </div>
+        </div>
+
+        <form class="li-preview__form" onsubmit="return false;">
+          <textarea class="li-preview__textarea" name="draft_text" rows="8" data-draft-text data-gen-id="{{ gid }}">{{ v }}</textarea>
+          {% if gid %}
+          <div class="li-preview__actions">
+            <button class="btn btn-copy" type="button" onclick="copyFromDraft(this)">📋 Copy</button>
+            <span class="li-preview__autosave" data-autosave-status aria-live="polite">Saved</span>
+            <a class="btn btn-cta" data-share-link href="/share/linkedin/start?gen_id={{ gid }}">Share on LinkedIn</a>
+          </div>
+          {% else %}
+          <div class="li-preview__actions">
+            <button class="btn btn-copy" type="button" onclick="copyFromDraft(this)">📋 Copy</button>
+          </div>
+          {% endif %}
+        </form>
       </div>
     </div>
     {% endfor %}
     {% else %}
-    {% for v in variants %}
+    {% for v in variants_list %}
     <div class="card mb-15rem">
       <div class="card-header">
         <h3 class="c-white fs-13rem fw-700">Draft</h3>
       </div>
-      
-      <div class="generated-content">{{ v | replace('\n\n', '<br/><br/>') | replace('\n', '<br/>') | safe }}</div>
-      
-      <div class="text-center mt-3">
-        <button class="btn btn-copy" onclick="copyToClipboard(this, `{{ v|replace('`', '\\`')|replace('\\', '\\\\')|replace('\n', '\\n') }}`)">📋 Copy to Clipboard</button>
+
+      <div class="li-preview">
+        <div class="li-preview__header">
+          {% set profile = user_profile if user_profile is defined else {} %}
+          {% set display_name = (profile.get('name') if profile else '') or 'You' %}
+          {% set avatar = (profile.get('profile_image_url') if profile else '') or '' %}
+          <div class="li-preview__avatar">
+            {% if avatar %}
+              <img src="{{ avatar }}" alt="" referrerpolicy="no-referrer" />
+            {% else %}
+              <div class="li-preview__avatar-fallback" aria-hidden="true">{{ (display_name[:1] or 'U')|upper }}</div>
+            {% endif %}
+          </div>
+          <div class="li-preview__meta">
+            <div class="li-preview__name">{{ display_name }}</div>
+            <div class="li-preview__sub">Posting to Anyone • Now</div>
+          </div>
+        </div>
+        <form class="li-preview__form" onsubmit="return false;">
+          <textarea class="li-preview__textarea" name="draft_text" rows="8" data-draft-text>{{ v }}</textarea>
+          <div class="li-preview__actions">
+            <button class="btn btn-copy" type="button" onclick="copyFromDraft(this)">📋 Copy</button>
+          </div>
+        </form>
       </div>
     </div>
     {% endfor %}
@@ -54,24 +145,102 @@
     </div>
   </div>
 </div>
+    {% endif %}
 
 <script>
-function copyToClipboard(button, text) {
+{% if error and not has_content %}
+  try { window.showNotification && showNotification({{ error|tojson }}, 'error'); } catch (_) {}
+{% endif %}
+function _flashBtn(button, msg) {
+  const originalText = button.innerHTML;
+  button.innerHTML = msg;
+  button.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+  setTimeout(() => {
+    button.innerHTML = originalText;
+    button.style.background = '';
+  }, 1700);
+}
+
+function _getDraftTextFromButton(button) {
+  const root = button && button.closest('.li-preview');
+  const ta = root && root.querySelector('[data-draft-text]');
+  return (ta && ta.value) ? ta.value : '';
+}
+
+function copyFromDraft(button) {
+  const text = _getDraftTextFromButton(button);
+  if (!text) return;
   navigator.clipboard.writeText(text).then(function() {
-    const originalText = button.innerHTML;
-    button.innerHTML = '✅ Copied!';
-    button.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-    
-    setTimeout(() => {
-      button.innerHTML = originalText;
-      button.style.background = '';
-    }, 2000);
-    
-    // Show notification
+    _flashBtn(button, '✅ Copied!');
     showNotification('Post copied to clipboard!', 'success');
   }).catch(function(err) {
     console.error('Failed to copy text: ', err);
     showNotification('Failed to copy text', 'error');
   });
 }
+
+async function _saveDraftByTextarea(textarea, { toast = true } = {}) {
+  const genId = textarea && textarea.getAttribute && textarea.getAttribute('data-gen-id');
+  const text = (textarea && textarea.value) ? textarea.value : '';
+  if (!genId || !text) return { ok: false, status: 0 };
+  const root = textarea.closest('.li-preview');
+  const statusEl = root && root.querySelector('[data-autosave-status]');
+  try {
+    if (statusEl) statusEl.textContent = 'Saving…';
+  try {
+      const form = new FormData();
+      form.append('draft_text', text);
+      const resp = await fetch(`/api/generations/${encodeURIComponent(genId)}/draft`, {
+        method: 'POST',
+        body: form,
+        headers: { 'X-CSRFToken': (window.__CSRF_TOKEN__ || '') }
+      });
+      if (resp.status === 204) {
+        if (statusEl) statusEl.textContent = 'Saved';
+        if (toast) showNotification('Draft saved.', 'success');
+        return { ok: true, status: 204 };
+      }
+      const msg = await resp.text();
+      if (statusEl) statusEl.textContent = 'Save failed';
+      if (toast) showNotification(msg || 'Failed to save draft', 'error');
+      return { ok: false, status: resp.status };
+    } catch (e) {
+      console.error(e);
+      if (statusEl) statusEl.textContent = 'Save failed';
+      if (toast) showNotification('Failed to save draft', 'error');
+      return { ok: false, status: 0 };
+    }
+  } finally {
+    // nothing
+  }
+}
+
+function initAutoSaveDrafts() {
+  const textareas = Array.from(document.querySelectorAll('textarea[data-gen-id]'));
+  textareas.forEach((ta) => {
+    let t = null;
+    ta.addEventListener('input', () => {
+      if (t) clearTimeout(t);
+      t = setTimeout(() => _saveDraftByTextarea(ta, { toast: false }), 800);
+    });
+  });
+
+  // Ensure the latest edit is saved before starting LinkedIn share OAuth
+  Array.from(document.querySelectorAll('a[data-share-link]')).forEach((a) => {
+    a.addEventListener('click', async (e) => {
+      const root = a.closest('.li-preview');
+      const ta = root && root.querySelector('textarea[data-gen-id]');
+      if (!ta) return;
+      e.preventDefault();
+      const res = await _saveDraftByTextarea(ta, { toast: false });
+      if (!res.ok) {
+        showNotification('Please fix the draft save error before sharing.', 'error');
+        return;
+      }
+      window.location.href = a.getAttribute('href');
+    });
+  });
+}
+
+try { initAutoSaveDrafts(); } catch (_) {}
 </script>

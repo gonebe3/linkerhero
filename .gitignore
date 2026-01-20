@@ -17,3 +17,8 @@ coverage.xml
 /.coverage
 /.coverage.*
 
+
+# Local dev / Cursor artifacts
+.cursor/
+.tmp_*.py
+

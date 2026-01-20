@@ -21,6 +21,9 @@ from .forms import GenerateForm
 from .generation_settings import GENERATION_CATEGORIES
 from ..limiter import limiter
 from flask_limiter.util import get_remote_address
+from datetime import datetime, timezone
+
+from ..news.article_extractor import extract_full_article, is_cached_content_fresh, smart_truncate_for_llm
 
 bp = Blueprint("gen", __name__, url_prefix="")
 
@@ -83,9 +86,15 @@ def api_generate():
         flash("Please log in to generate posts.", "error")
         return redirect(url_for("auth.login", next=request.full_path))
     
-    # Determine which model will be used (needed for quota check)
+    # Determine which model will be used (needed for quota check + provider routing)
     model_choice = (request.form.get("model") or form.model.data or "claude").strip().lower()
-    use_gpt = model_choice in {"gpt", "gpt5", "openai", "chatgpt", "gpt-5"}
+    # Normalize model keys coming from the UI (no hardcoding of vendor IDs in the browser)
+    if model_choice in {"chatgpt 5.2", "chatgpt-5.2", "gpt-5.2", "gpt5.2", "gpt-5-2", "chatgpt-5-2"}:
+        model_choice = "chatgpt-5-2"
+    if model_choice in {"claude sonnet 4.5", "claude-sonnet-4.5", "claude-4.5", "sonnet-4.5", "claude-sonnet-4-5"}:
+        model_choice = "claude-sonnet-4-5"
+
+    use_gpt = model_choice in {"gpt", "gpt5", "openai", "chatgpt", "gpt-5", "chatgpt-5-2"}
     
     # Atomic quota check and reservation using SELECT FOR UPDATE
     # This prevents race conditions where multiple requests pass quota check simultaneously
@@ -110,7 +119,18 @@ def api_generate():
             # Check if user has any quota left
             if (left_gpt + left_claude) <= 0:
                 if request.headers.get('HX-Request'):
-                    return render_template("gen_results_spaceship.html", variants=[], error="Monthly quota reached. Upgrade your plan or wait for renewal.")
+                    renews_at = None
+                    try:
+                        renews_at = user.plan_renews_at.strftime("%Y-%m-%d") if user.plan_renews_at else None
+                    except Exception:
+                        renews_at = None
+                    return render_template(
+                        "gen_results_spaceship.html",
+                        variants=[],
+                        error="Monthly quota reached. Upgrade your plan or wait for renewal.",
+                        error_code="quota",
+                        renews_at=renews_at,
+                    )
                 from flask import flash
                 flash("Monthly quota reached. Upgrade your plan or wait for renewal.", "error")
                 return redirect(url_for("main.dashboard"))
@@ -118,16 +138,38 @@ def api_generate():
             # Check specific model quota
             if use_gpt and left_gpt <= 0:
                 if request.headers.get('HX-Request'):
-                    return render_template("gen_results_spaceship.html", variants=[], error="GPT quota reached. Try Claude instead or upgrade your plan.")
+                    renews_at = None
+                    try:
+                        renews_at = user.plan_renews_at.strftime("%Y-%m-%d") if user.plan_renews_at else None
+                    except Exception:
+                        renews_at = None
+                    return render_template(
+                        "gen_results_spaceship.html",
+                        variants=[],
+                        error="ChatGPT quota reached. Try Claude Sonnet instead or upgrade your plan.",
+                        error_code="quota",
+                        renews_at=renews_at,
+                    )
                 from flask import flash
-                flash("GPT quota reached. Try Claude instead or upgrade your plan.", "error")
+                flash("ChatGPT quota reached. Try Claude Sonnet instead or upgrade your plan.", "error")
                 return redirect(url_for("gen.generate_form"))
             
             if not use_gpt and left_claude <= 0:
                 if request.headers.get('HX-Request'):
-                    return render_template("gen_results_spaceship.html", variants=[], error="Claude quota reached. Try GPT instead or upgrade your plan.")
+                    renews_at = None
+                    try:
+                        renews_at = user.plan_renews_at.strftime("%Y-%m-%d") if user.plan_renews_at else None
+                    except Exception:
+                        renews_at = None
+                    return render_template(
+                        "gen_results_spaceship.html",
+                        variants=[],
+                        error="Claude quota reached. Try ChatGPT 5.2 instead or upgrade your plan.",
+                        error_code="quota",
+                        renews_at=renews_at,
+                    )
                 from flask import flash
-                flash("Claude quota reached. Try GPT instead or upgrade your plan.", "error")
+                flash("Claude quota reached. Try ChatGPT 5.2 instead or upgrade your plan.", "error")
                 return redirect(url_for("gen.generate_form"))
             
             # Reserve quota NOW before generation (prevents race condition)
@@ -158,6 +200,10 @@ def api_generate():
     emoji = (request.form.get("emoji") or getattr(form, "emoji", None) and form.emoji.data or "no").strip().lower()  # type: ignore[attr-defined]
     language_choice = (request.form.get("language") or getattr(form, "language", None) and form.language.data or "").strip()  # type: ignore[attr-defined]
     model_choice = (request.form.get("model") or form.model.data or "claude").strip().lower()
+    if model_choice in {"chatgpt 5.2", "chatgpt-5.2", "gpt-5.2", "gpt5.2", "gpt-5-2", "chatgpt-5-2"}:
+        model_choice = "chatgpt-5-2"
+    if model_choice in {"claude sonnet 4.5", "claude-sonnet-4.5", "claude-4.5", "sonnet-4.5", "claude-sonnet-4-5"}:
+        model_choice = "claude-sonnet-4-5"
 
     # If Text field has content, prioritize it regardless of mode
     mode = (request.form.get("source_mode") or "text").strip().lower()
@@ -178,18 +224,41 @@ def api_generate():
                 return render_template("gen_results_spaceship.html", variants=[], error="Please enter a URL.")
             with db_session() as s:
                 selected_article = s.execute(select(Article).where(Article.url == url)).scalar_one_or_none()
-            if selected_article:
-                source_text = (selected_article.title + "\n\n" + selected_article.summary).strip()[:8000]
+            # Prefer cached full-article text when present and fresh
+            if selected_article and getattr(selected_article, "content_text", None) and is_cached_content_fresh(
+                getattr(selected_article, "content_extracted_at", None)
+            ):
+                source_text = smart_truncate_for_llm(getattr(selected_article, "content_text") or "", max_chars=8000)
+
+            # Otherwise extract full article now (best-effort) and cache on the Article row if present
             if not source_text:
                 try:
-                    data = asyncio.run(extract_url(url))
-                    title = (data.get("title") or url).strip()
-                    summary = (data.get("summary") or "").strip()
-                    combined = (title + "\n\n" + summary).strip()
-                    source_text = combined[:8000]
-                    scraped_keywords = _keywords(title, summary)
+                    data = asyncio.run(extract_full_article(url))
+                    content_text = (data.content_text or "").strip()
+                    if content_text:
+                        source_text = smart_truncate_for_llm(content_text, max_chars=8000)
+                        scraped_keywords = _keywords(data.title or "", data.summary or "")
+                        if selected_article:
+                            try:
+                                with db_session() as s:
+                                    art = s.get(Article, selected_article.id)
+                                    if art:
+                                        art.content_text = content_text
+                                        art.content_extracted_at = datetime.now(timezone.utc)
+                                        art.content_extractor = data.extractor
+                            except Exception:
+                                pass
                 except Exception:
-                    return render_template("gen_results_spaceship.html", variants=[], error="Could not fetch content from the URL.")
+                    # Fall back to legacy title/summary extraction if full-text fails
+                    try:
+                        data2 = asyncio.run(extract_url(url))
+                        title = (data2.get("title") or url).strip()
+                        summary = (data2.get("summary") or "").strip()
+                        combined = (title + "\n\n" + summary).strip()
+                        source_text = combined[:8000]
+                        scraped_keywords = _keywords(title, summary)
+                    except Exception:
+                        return render_template("gen_results_spaceship.html", variants=[], error="Could not fetch content from the URL.")
         elif mode == "text":
             text_val = (request.form.get("text") or form.text.data or "").strip()
             if not text_val:
@@ -283,7 +352,14 @@ def api_generate():
         flash("Could not read any content from your input.", "error")
         return redirect(url_for("gen.generate_form"))
 
-    provider = get_provider("openai" if model_choice in {"gpt", "gpt5", "openai", "chatgpt", "gpt-5"} else "anthropic")
+    provider_kind = "openai" if model_choice in {"gpt", "gpt5", "openai", "chatgpt", "gpt-5", "chatgpt-5-2"} else "anthropic"
+    # Map UI selection to concrete provider model IDs via config (env-overridable)
+    if provider_kind == "openai":
+        selected_model_id = (current_app.config.get("OPENAI_MODEL_CHATGPT_5_2") or "gpt-5").strip()
+    else:
+        selected_model_id = (current_app.config.get("ANTHROPIC_MODEL_SONNET_4_5") or "claude-3-7-sonnet-20250219").strip()
+
+    provider = get_provider(provider_kind)
     kw_dict: dict[str, float] = {}
     if selected_article and selected_article.topics:
         kw_dict = dict(selected_article.topics)
@@ -299,15 +375,17 @@ def api_generate():
     # Adjust max tokens based on requested length
     length_key = (length or "auto").strip().lower()
     if length_key == "short":
-        max_tokens = 350
+        max_tokens = 250
     elif length_key == "long":
-        max_tokens = 900
+        max_tokens = 1600
+    elif length_key == "medium":
+        max_tokens = 750
     else:
-        max_tokens = 600
+        max_tokens = 900
 
     # 2-pass: extract grounded facts, then write
     try:
-        facts = provider.extract_facts(source_text=source_text, language=language_hint, max_facts=14)
+        facts = provider.extract_facts(source_text=source_text, language=language_hint, max_facts=14, model=selected_model_id)
     except Exception:
         facts = []
     if facts:
@@ -324,6 +402,7 @@ def api_generate():
                 user_prompt=user_prompt,
                 language=final_language,
                 max_tokens=max_tokens,
+                model=selected_model_id,
             )
             variants = [drafted]
         except Exception:
@@ -345,6 +424,7 @@ def api_generate():
             emoji=emoji,
             user_prompt=user_prompt,
             language=final_language,
+            model=selected_model_id,
         )
     # If the model responded with our sentinel indicating insufficient grounding, return error
     if variants and isinstance(variants[0], str) and variants[0].strip().upper() == "INSUFFICIENT_SOURCE":
@@ -379,7 +459,7 @@ def api_generate():
                 g = Generation(
                     user_id=user_id,
                     article_id=(selected_article.id if selected_article else None),
-                    model=("gpt-5" if use_gpt else "claude-3-7-sonnet-20250219"),
+                    model=selected_model_id,
                     prompt=(
                         f"persona={persona}, tone={tone}, hook_type={hook_type}, "
                         f"goal={goal}, length={length}, ending={ending}, emoji={emoji}, language={final_language}, "
@@ -420,9 +500,32 @@ def api_generate():
     if not gen_rows:
         gen_rows = [("", v) for v in results]
 
+    # Lightweight profile payload for LinkedIn-like preview UI
+    user_profile: dict[str, str] = {}
+    try:
+        with db_session() as s:
+            u = s.get(User, user_id)
+            if u:
+                full_name = (getattr(u, "full_name", None) or "").strip()
+                display_name = (getattr(u, "display_name", None) or "").strip()
+                email = (getattr(u, "email", None) or "").strip()
+                profile_image_url = (getattr(u, "profile_image_url", None) or "").strip()
+                name = full_name or display_name or (email.split("@", 1)[0] if email else "")
+                user_profile = {
+                    "name": name,
+                    "profile_image_url": profile_image_url,
+                }
+    except Exception:
+        user_profile = {}
+
     # HTMX path returns fragment; non-HTMX redirects (PRG) to avoid resubmission dialogs
     if request.headers.get('HX-Request'):
-        return render_template("gen_results_spaceship.html", variants=results, gen_rows=gen_rows)
+        return render_template(
+            "gen_results_spaceship.html",
+            variants=results,
+            gen_rows=gen_rows,
+            user_profile=user_profile,
+        )
 
     from flask import flash
     flash("Draft(s) generated successfully.", "success")
