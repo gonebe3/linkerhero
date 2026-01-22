@@ -68,9 +68,29 @@
       </form>
 
       <div class="text-center my-3 c-white-60">or</div>
-      <div class="flex gap-05 flex-wrap justify-center">
-        <a href="/login/linkedin" class="btn btn-translucent" onclick="event.stopPropagation();">Continue with LinkedIn</a>
-        <a href="/oauth/google/start" class="btn btn-translucent" onclick="event.stopPropagation();">Continue with Google</a>
+      <div class="oauth-buttons">
+        <a href="/login/linkedin" class="btn btn-translucent btn-oauth" onclick="event.stopPropagation();">
+          <img
+            class="oauth-icon"
+            src="{{ url_for('static', filename='images/providers/linkedin.png') }}"
+            alt="LinkedIn"
+            width="20"
+            height="20"
+            loading="lazy"
+          />
+          <span>Continue with LinkedIn</span>
+        </a>
+        <a href="/oauth/google/start" class="btn btn-translucent btn-oauth" onclick="event.stopPropagation();">
+          <img
+            class="oauth-icon"
+            src="{{ url_for('static', filename='images/providers/google.svg') }}"
+            alt="Google"
+            width="20"
+            height="20"
+            loading="lazy"
+          />
+          <span>Continue with Google</span>
+        </a>
       </div>
     </div>
 

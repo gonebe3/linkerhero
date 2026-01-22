@@ -9,6 +9,28 @@
     <style>
       /* Keep flash/error messages visible below the fixed header */
       .flash-container { margin-top: calc(70px + 12px); }
+
+      /* OAuth buttons (Login/Register) */
+      .oauth-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .btn-oauth {
+        width: 100%;
+        min-height: 48px;
+        padding: 12px 18px;
+        border-radius: 999px;
+        gap: 12px;
+      }
+
+      .btn-oauth .oauth-icon {
+        width: 20px;
+        height: 20px;
+        object-fit: contain;
+        flex: 0 0 20px;
+      }
     </style>
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
